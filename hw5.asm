@@ -118,38 +118,38 @@ place_tile:
     sw $s1, 0($sp)
 
     # Load board dimensions
-    lw $t0, board_width
-    lw $t1, board_height
+    lw $t0, board_width    # width in $t0
+    lw $t1, board_height   # height in $t1
     
-    # Check row bounds (a0)
+    # Check bounds
     bltz $a0, out_of_bounds    # row < 0
     bge $a0, $t1, out_of_bounds  # row >= height
-    
-    # Check column bounds (a1)
     bltz $a1, out_of_bounds    # col < 0
     bge $a1, $t0, out_of_bounds  # col >= width
     
-    # Calculate offset: row * width + col
-    mul $t1, $a0, $t0     # row * width
-    add $t1, $t1, $a1     # + col
-    la $t2, board         # board base address
-    add $t2, $t2, $t1     # board + offset
+    # Calculate offset into board array: offset = row * width + col
+    mul $t1, $a0, $t0    # row * width
+    add $t1, $t1, $a1    # + col
     
-    # Check if occupied
-    lb $t4, 0($t2)
-    bnez $t4, occupied    # if cell != 0, occupied
+    # Get board address and add offset
+    la $t2, board
+    add $t2, $t2, $t1
     
-    # Place tile
-    sb $a2, 0($t2)       # board[offset] = value
-    li $v0, 0            # return success
+    # Check if cell is already occupied
+    lb $t4, ($t2)
+    bnez $t4, occupied
+    
+    # Place the tile
+    sb $a2, ($t2)
+    li $v0, 0     # Success
     j place_tile_done
 
 out_of_bounds:
-    li $v0, 2            # return out of bounds error
+    li $v0, 2     # Out of bounds error
     j place_tile_done
 
 occupied:
-    li $v0, 1            # return occupied error
+    li $v0, 1     # Occupied error
 
 place_tile_done:
     lw $ra, 8($sp)
@@ -341,4 +341,4 @@ test_fit_done:
     addi $sp, $sp, 20
     jr $ra
 
-.include "skeleton.asm"
+.include "skeleton.asm" 
