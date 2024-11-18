@@ -108,46 +108,44 @@ zero_col_loop:
     jr $ra
 
 place_tile:
-    # Preserve registers
     addi $sp, $sp, -12
     sw $ra, 8($sp)
     sw $s0, 4($sp)
     sw $s1, 0($sp)
 
-    # Load board dimensions
+    # Load dimensions 
     lw $t0, board_width
     lw $t1, board_height
     
     # Check bounds
-    bltz $a0, out_of_bounds    # row < 0
-    bge $a0, $t1, out_of_bounds # row >= height
-    bltz $a1, out_of_bounds    # col < 0
-    bge $a1, $t0, out_of_bounds # col >= width
+    bltz $a0, out_of_bounds
+    bge $a0, $t1, out_of_bounds
+    bltz $a1, out_of_bounds
+    bge $a1, $t0, out_of_bounds
     
-    # Calculate position in board array
-    mul $t1, $a0, $t0     # row * width
-    add $t1, $t1, $a1     # + col
-    la $t2, board         # load board base
-    add $t2, $t2, $t1     # get cell address
+    # Calculate offset
+    mul $t1, $a0, $t0
+    add $t1, $t1, $a1
+    la $t2, board
+    add $t2, $t2, $t1
     
-    # Check if cell is already occupied
+    # Check if occupied
     lb $t4, 0($t2)
-    bnez $t4, occupied    # if not zero, cell is occupied
+    bnez $t4, occupied
     
-    # Place tile if cell is free
+    # Place tile
     sb $a2, 0($t2)
-    li $v0, 0            # return success
+    li $v0, 0
     j place_tile_done
 
 out_of_bounds:
-    li $v0, 2            # return out of bounds error
+    li $v0, 2
     j place_tile_done
 
 occupied:
-    li $v0, 1            # return occupied error
+    li $v0, 1
 
 place_tile_done:
-    # Restore registers
     lw $ra, 8($sp)
     lw $s0, 4($sp)
     lw $s1, 0($sp)
