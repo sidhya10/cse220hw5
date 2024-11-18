@@ -21,15 +21,15 @@ zeroOut:
     la $s0, board
     lw $s1, board_width
     lw $s2, board_height
-    li $s3, 0  # row counter
+    li $s3, 0  
 
 zero_row_loop:
-    li $t0, 0  # col counter
+    li $t0, 0  
 zero_col_loop:
     mul $t1, $s3, $s1
     add $t1, $t1, $t0
     add $t1, $t1, $s0
-    sb $zero, 0($t1)  # Corrected: Added 0 offset
+    sb $zero, 0($t1)
     
     addi $t0, $t0, 1
     blt $t0, $s1, zero_col_loop
@@ -43,7 +43,6 @@ zero_col_loop:
     lw $s2, 4($sp)
     lw $s3, 0($sp)
     addi $sp, $sp, 20
-zero_done:
     jr $ra
 
 printBoard:
@@ -57,16 +56,16 @@ printBoard:
     la $s0, board
     lw $s1, board_width
     lw $s2, board_height
-    li $s3, 0  # row counter
+    li $s3, 0  
 
 print_row_loop:
-    li $t0, 0  # col counter
+    li $t0, 0  
 print_col_loop:
     mul $t1, $s3, $s1
     add $t1, $t1, $t0
     add $t1, $t1, $s0
     
-    lb $a0, 0($t1)  # Corrected: Added 0 offset
+    lb $a0, 0($t1)
     li $v0, 1
     syscall
     
@@ -115,10 +114,10 @@ place_tile:
     add $t3, $t3, $a1
     add $t2, $t2, $t3
     
-    lb $t4, 0($t2)  # Corrected: Added 0 offset
+    lb $t4, 0($t2)
     bnez $t4, occupied
     
-    sb $a2, 0($t2)  # Corrected: Added 0 offset
+    sb $a2, 0($t2)
     li $v0, 0
     j place_tile_done
     
@@ -146,29 +145,43 @@ placePieceOnBoard:
     sw $s4, 4($sp)
     sw $s5, 0($sp)
     
-    move $s0, $a0
-    move $s1, $a1
+    move $s0, $a0  # piece struct
+    move $s1, $a1  # ship num
     
-    lw $s2, 0($s0)
-    lw $s3, 4($s0)
-    lw $s4, 8($s0)
-    lw $s5, 12($s0)
+    lw $s2, 0($s0)  # type
+    lw $s3, 4($s0)  # orientation
+    lw $s4, 8($s0)  # row
+    lw $s5, 12($s0) # col
 
+    # Place anchor tile first
+    move $a0, $s4
+    move $a1, $s5
+    move $a2, $s1
+    jal place_tile
+    bnez $v0, cleanup_and_return
 
-li $t0, 1
-beq $s2, $t0, piece_square  # Changed $s3 to $s2
-li $t0, 2
-beq $s2, $t0, piece_line    # Changed $s3 to $s2
-li $t0, 3
-beq $s2, $t0, piece_reverse_z # Changed $s3 to $s2
-li $t0, 4
-beq $s2, $t0, piece_L       # Changed $s3 to $s2
-li $t0, 5
-beq $s2, $t0, piece_z       # Changed $s3 to $s2
-li $t0, 6
-beq $s2, $t0, piece_reverse_L # Changed $s3 to $s2
-li $t0, 7
-beq $s2, $t0, piece_T       # Changed $s3 to $s2
+    # Check piece type and orientation
+    li $t0, 1
+    beq $s2, $t0, piece_square
+    li $t0, 2
+    beq $s2, $t0, piece_line
+    li $t0, 3
+    beq $s2, $t0, piece_reverse_z
+    li $t0, 4
+    beq $s2, $t0, piece_L
+    li $t0, 5
+    beq $s2, $t0, piece_z
+    li $t0, 6
+    beq $s2, $t0, piece_reverse_L
+    li $t0, 7
+    beq $s2, $t0, piece_T
+    j cleanup_and_return
+
+cleanup_and_return:
+    move $s2, $v0  # Save error code
+    jal zeroOut    # Clear board
+    move $v0, $s2  # Restore error code
+    j piece_done
 
 piece_done:
     lw $ra, 24($sp)
@@ -189,17 +202,19 @@ test_fit:
     sw $s2, 4($sp)
     sw $s3, 0($sp)
     
-    move $s0, $a0
-    li $s1, 0
-    li $s2, 0
+    move $s0, $a0  # piece array
+    li $s1, 0      # piece counter
+    li $s2, 0      # max error seen
     
 test_loop:
+    # Calculate piece address
     li $t0, 16
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    lw $t1, 0($s3)
-    lw $t2, 4($s3)
+    # Load and validate type/orientation first
+    lw $t1, 0($s3)  # type
+    lw $t2, 4($s3)  # orientation
     
     li $t3, 1
     li $t4, 7
@@ -209,19 +224,21 @@ test_loop:
     li $t4, 4
     blt $t2, $t3, invalid_type
     bgt $t2, $t4, invalid_type
-    j piece_valid
     
-invalid_type:
-    li $v0, 4
-    j test_fit_done
+    # Clear board before trying piece
+    jal zeroOut
     
-piece_valid:
+    # Try placing piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
     bgt $v0, $s2, update_max
     j continue_test
+    
+invalid_type:
+    li $v0, 4
+    j test_fit_done
     
 update_max:
     move $s2, $v0
@@ -246,17 +263,17 @@ T_orientation4:
     addi $sp, $sp, -4
     sw $ra, 0($sp)
     
-    addi $a1, $a1, -1
-    addi $a0, $a0, 1
+    addi $a1, $a1, -1  # col - 1
+    addi $a0, $a0, 1   # row + 1
     jal place_tile
     bnez $v0, t4_fail
     
-    addi $a1, $a1, 2
+    addi $a1, $a1, 2   # col + 2
     jal place_tile
     bnez $v0, t4_fail
     
-    addi $a1, $a1, -1
-    addi $a0, $a0, 1
+    addi $a1, $a1, -1  # col - 1
+    addi $a0, $a0, 1   # row + 2
     jal place_tile
     bnez $v0, t4_fail
     
