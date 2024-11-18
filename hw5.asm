@@ -124,27 +124,27 @@ place_tile:
     bltz $a1, out_of_bounds    # col < 0
     bge $a1, $t0, out_of_bounds # col >= width
     
-    # Calculate offset: row * width + col
-    mul $t1, $a0, $t0    
-    add $t1, $t1, $a1    
-    la $t2, board        
-    add $t2, $t2, $t1    
+    # Calculate position in board array
+    mul $t1, $a0, $t0     # row * width
+    add $t1, $t1, $a1     # + col
+    la $t2, board         # load board base
+    add $t2, $t2, $t1     # get cell address
     
-    # Check if occupied
+    # Check if cell is already occupied
     lb $t4, 0($t2)
-    bnez $t4, occupied
+    bnez $t4, occupied    # if not zero, cell is occupied
     
-    # Place tile
+    # Place tile if cell is free
     sb $a2, 0($t2)
-    li $v0, 0
+    li $v0, 0            # return success
     j place_tile_done
 
 out_of_bounds:
-    li $v0, 2
+    li $v0, 2            # return out of bounds error
     j place_tile_done
 
 occupied:
-    li $v0, 1
+    li $v0, 1            # return occupied error
 
 place_tile_done:
     # Restore registers
@@ -276,7 +276,6 @@ piece_done:
     jr $ra
 
 test_fit:
-    # Preserve registers
     addi $sp, $sp, -20
     sw $ra, 16($sp)
     sw $s0, 12($sp)
@@ -284,10 +283,10 @@ test_fit:
     sw $s2, 4($sp)
     sw $s3, 0($sp)
     
-    move $s0, $a0  # piece array
-    li $s1, 0      # piece counter
-    li $s2, 0      # max error seen
-    
+    move $s0, $a0      # piece array
+    li $s1, 0          # current piece index
+    li $s2, 0          # error code
+
 test_loop:
     # Calculate piece address
     li $t0, 16
@@ -295,36 +294,28 @@ test_loop:
     add $s3, $s0, $t0
     
     # Load piece data
-    lw $t1, 0($s3)  # type
-    lw $t2, 4($s3)  # orientation
+    lw $t1, 0($s3)     # type
+    lw $t2, 4($s3)     # orientation
     
-    # Validate type and orientation
+    # Validate piece type (1-7)
     li $t3, 1
-    li $t4, 7
     blt $t1, $t3, invalid_fit_type
-    bgt $t1, $t4, invalid_fit_type
+    li $t3, 7
+    bgt $t1, $t3, invalid_fit_type
+    
+    # Validate orientation (1-4)
     li $t3, 1
-    li $t4, 4
     blt $t2, $t3, invalid_fit_type
-    bgt $t2, $t4, invalid_fit_type
-    
-    # Clear board before placing piece
-    jal zeroOut
-    
+    li $t3, 4
+    bgt $t2, $t3, invalid_fit_type
+
     # Try placing piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
     # Update max error if needed
-    bgt $v0, $s2, update_max
-    j continue_fit_test
-
-invalid_fit_type:
-    li $v0, 4
-    j test_fit_done
-    
-update_max:
+    blt $v0, $s2, continue_fit_test
     move $s2, $v0
     
 continue_fit_test:
@@ -333,15 +324,18 @@ continue_fit_test:
     blt $s1, $t0, test_loop
     
     move $v0, $s2
-    
+    j test_fit_done
+
+invalid_fit_type:
+    li $v0, 4
+
 test_fit_done:
-    # Restore registers
     lw $ra, 16($sp)
-    lw $s0, 12($sp)
+    lw $s0, 12($sp)  
     lw $s1, 8($sp)
     lw $s2, 4($sp)
     lw $s3, 0($sp)
     addi $sp, $sp, 20
     jr $ra
-
+    
 .include "skeleton.asm"
