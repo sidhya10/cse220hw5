@@ -118,38 +118,38 @@ place_tile:
     sw $s1, 0($sp)
 
     # Load board dimensions
-    lw $t0, board_width    # width in $t0
-    lw $t1, board_height   # height in $t1
+    lw $t0, board_width
+    lw $t1, board_height
     
-    # Check bounds
+    # Check row bounds (a0)
     bltz $a0, out_of_bounds    # row < 0
     bge $a0, $t1, out_of_bounds  # row >= height
+    
+    # Check column bounds (a1)
     bltz $a1, out_of_bounds    # col < 0
     bge $a1, $t0, out_of_bounds  # col >= width
     
-    # Calculate offset into board array: offset = row * width + col
-    mul $t1, $a0, $t0    # row * width
-    add $t1, $t1, $a1    # + col
+    # Calculate offset: row * width + col
+    mul $t1, $a0, $t0     # row * width
+    add $t1, $t1, $a1     # + col
+    la $t2, board         # board base address
+    add $t2, $t2, $t1     # board + offset
     
-    # Get board address and add offset
-    la $t2, board
-    add $t2, $t2, $t1
+    # Check if occupied
+    lb $t4, 0($t2)
+    bnez $t4, occupied    # if cell != 0, occupied
     
-    # Check if cell is already occupied
-    lb $t4, ($t2)
-    bnez $t4, occupied
-    
-    # Place the tile
-    sb $a2, ($t2)
-    li $v0, 0     # Success
+    # Place tile
+    sb $a2, 0($t2)       # board[offset] = value
+    li $v0, 0            # return success
     j place_tile_done
 
 out_of_bounds:
-    li $v0, 2     # Out of bounds error
+    li $v0, 2            # return out of bounds error
     j place_tile_done
 
 occupied:
-    li $v0, 1     # Occupied error
+    li $v0, 1            # return occupied error
 
 place_tile_done:
     lw $ra, 8($sp)
@@ -284,19 +284,22 @@ test_fit:
     
     move $s0, $a0      # piece array
     li $s1, 0          # current piece index
-    li $s2, 0          # max error code
+    li $s2, 0          # error code
+    
+    # Clear board initially
+    jal zeroOut
 
 test_loop:
-    # Calculate current piece address
-    li $t0, 16         # Each piece struct is 16 bytes
-    mul $t0, $t0, $s1  # offset = index * 16
-    add $s3, $s0, $t0  # current piece address
+    # Calculate piece address
+    li $t0, 16
+    mul $t0, $t0, $s1
+    add $s3, $s0, $t0
     
-    # Load piece type and orientation
+    # Load piece data
     lw $t1, 0($s3)     # type
     lw $t2, 4($s3)     # orientation
     
-    # Validate type (1-7)
+    # Validate piece type (1-7)
     li $t3, 1
     blt $t1, $t3, invalid_fit_type
     li $t3, 7
@@ -308,29 +311,30 @@ test_loop:
     li $t3, 4
     bgt $t2, $t3, invalid_fit_type
 
-    # Clear board before testing piece
-    jal zeroOut
-    
     # Try placing piece
     move $a0, $s3
-    addi $a1, $s1, 1   # Ship number is index + 1
+    addi $a1, $s1, 1
     jal placePieceOnBoard
     
+    # Clear board before next piece
+    jal zeroOut
+    
     # Update max error if needed
-    ble $v0, $s2, continue_fit_test
+    blt $v0, $s2, continue_fit_test
     move $s2, $v0
-
+    
 continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5          # Test all 5 pieces
-    blt $s1, $t0, test_loop
-    
-    # Return max error code
-    move $v0, $s2
-    j test_fit_done
+    li $t0, 5          # Only test first 5 pieces
+    bge $s1, $t0, test_done
+    j test_loop
 
 invalid_fit_type:
-    li $v0, 4          # Invalid type/orientation error
+    li $v0, 4
+    j test_fit_done
+
+test_done:
+    move $v0, $s2
 
 test_fit_done:
     lw $ra, 16($sp)
@@ -341,4 +345,4 @@ test_fit_done:
     addi $sp, $sp, 20
     jr $ra
 
-.include "skeleton.asm" 
+.include "skeleton.asm"
