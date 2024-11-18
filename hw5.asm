@@ -10,42 +10,8 @@ extra_newline: .asciiz "\n\n"
 .globl placePieceOnBoard 
 .globl test_fit 
 
-zeroOut:
-    addi $sp, $sp, -20
-    sw $ra, 16($sp)
-    sw $s0, 12($sp)
-    sw $s1, 8($sp)
-    sw $s2, 4($sp)
-    sw $s3, 0($sp)
-
-    la $s0, board
-    lw $s1, board_width
-    lw $s2, board_height
-    li $s3, 0  
-
-zero_row_loop:
-    li $t0, 0  
-zero_col_loop:
-    mul $t1, $s3, $s1
-    add $t1, $t1, $t0
-    add $t1, $t1, $s0
-    sb $zero, 0($t1)
-    
-    addi $t0, $t0, 1
-    blt $t0, $s1, zero_col_loop
-    
-    addi $s3, $s3, 1
-    blt $s3, $s2, zero_row_loop
-
-    lw $ra, 16($sp)
-    lw $s0, 12($sp)
-    lw $s1, 8($sp)
-    lw $s2, 4($sp)
-    lw $s3, 0($sp)
-    addi $sp, $sp, 20
-    jr $ra
-
 printBoard:
+    # Preserve registers
     addi $sp, $sp, -20
     sw $ra, 16($sp)
     sw $s0, 12($sp)
@@ -53,22 +19,25 @@ printBoard:
     sw $s2, 4($sp)
     sw $s3, 0($sp)
 
-    la $s0, board
-    lw $s1, board_width
-    lw $s2, board_height
-    li $s3, 0  
+    la $s0, board        # board base address
+    lw $s1, board_width  # board width
+    lw $s2, board_height # board height
+    li $s3, 0           # row counter
 
 print_row_loop:
-    li $t0, 0  
+    li $t0, 0           # column counter
 print_col_loop:
+    # Calculate offset: row * width + col
     mul $t1, $s3, $s1
     add $t1, $t1, $t0
     add $t1, $t1, $s0
     
+    # Print number
     lb $a0, 0($t1)
     li $v0, 1
     syscall
     
+    # Print space if not last column
     addi $t2, $t0, 1
     beq $t2, $s1, skip_space
     la $a0, space
@@ -78,6 +47,7 @@ skip_space:
     addi $t0, $t0, 1
     blt $t0, $s1, print_col_loop
     
+    # Print newline at end of row
     la $a0, newline
     li $v0, 4
     syscall
@@ -85,10 +55,50 @@ skip_space:
     addi $s3, $s3, 1
     blt $s3, $s2, print_row_loop
 
+    # Print extra newline at end
     la $a0, newline
     li $v0, 4
     syscall
 
+    # Restore registers
+    lw $ra, 16($sp)
+    lw $s0, 12($sp)
+    lw $s1, 8($sp)
+    lw $s2, 4($sp)
+    lw $s3, 0($sp)
+    addi $sp, $sp, 20
+    jr $ra
+
+zeroOut:
+    # Preserve registers
+    addi $sp, $sp, -20
+    sw $ra, 16($sp)
+    sw $s0, 12($sp)
+    sw $s1, 8($sp)
+    sw $s2, 4($sp)
+    sw $s3, 0($sp)
+
+    la $s0, board        # board base address
+    lw $s1, board_width  # width
+    lw $s2, board_height # height
+    li $s3, 0           # row counter
+
+zero_row_loop:
+    li $t0, 0           # column counter
+zero_col_loop:
+    # Calculate offset: row * width + col
+    mul $t1, $s3, $s1
+    add $t1, $t1, $t0
+    add $t1, $t1, $s0
+    sb $zero, 0($t1)    # Set cell to 0
+    
+    addi $t0, $t0, 1
+    blt $t0, $s1, zero_col_loop
+    
+    addi $s3, $s3, 1
+    blt $s3, $s2, zero_row_loop
+
+    # Restore registers
     lw $ra, 16($sp)
     lw $s0, 12($sp)
     lw $s1, 8($sp)
@@ -98,25 +108,27 @@ skip_space:
     jr $ra
 
 place_tile:
+    # Preserve registers
     addi $sp, $sp, -12
     sw $ra, 8($sp)
     sw $s0, 4($sp)
     sw $s1, 0($sp)
 
-    # Check bounds first
+    # Load board dimensions
     lw $t0, board_width
     lw $t1, board_height
     
+    # Check bounds
     bltz $a0, out_of_bounds    # row < 0
     bge $a0, $t1, out_of_bounds # row >= height
     bltz $a1, out_of_bounds    # col < 0
     bge $a1, $t0, out_of_bounds # col >= width
     
-    # Calculate offset correctly
-    mul $t1, $a0, $t0    # row * width
-    add $t1, $t1, $a1    # + col
-    la $t2, board        # load board base
-    add $t2, $t2, $t1    # add offset
+    # Calculate offset: row * width + col
+    mul $t1, $a0, $t0    
+    add $t1, $t1, $a1    
+    la $t2, board        
+    add $t2, $t2, $t1    
     
     # Check if occupied
     lb $t4, 0($t2)
@@ -135,13 +147,54 @@ occupied:
     li $v0, 1
 
 place_tile_done:
+    # Restore registers
     lw $ra, 8($sp)
     lw $s0, 4($sp)
     lw $s1, 0($sp)
     addi $sp, $sp, 12
     jr $ra
 
+T_orientation4:
+    # Preserve $ra
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+    
+    # Restore anchor coordinates
+    move $a0, $s4  # row
+    move $a1, $s5  # col
+    
+    # Place left tile (one below, one left)
+    addi $a0, $a0, 1   # row + 1
+    addi $a1, $a1, -1  # col - 1
+    move $a2, $s1      # ship number
+    jal place_tile
+    bnez $v0, t4_fail
+    
+    # Place right tile (one below, one right of anchor)
+    addi $a1, $a1, 2   # col + 2
+    jal place_tile
+    bnez $v0, t4_fail
+    
+    # Place bottom tile (two below, center)
+    addi $a0, $a0, 1   # row + 1
+    addi $a1, $a1, -1  # col - 1
+    jal place_tile
+    bnez $v0, t4_fail
+    
+    # Success
+    li $v0, 0
+    j t4_done
+    
+t4_fail:
+    # Error code already in $v0
+    
+t4_done:
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    j piece_done
+
 placePieceOnBoard:
+    # Preserve registers
     addi $sp, $sp, -28
     sw $ra, 24($sp)
     sw $s0, 20($sp)
@@ -151,9 +204,11 @@ placePieceOnBoard:
     sw $s4, 4($sp)
     sw $s5, 0($sp)
     
+    # Store arguments
     move $s0, $a0  # piece struct
     move $s1, $a1  # ship num
     
+    # Load piece data
     lw $s2, 0($s0)  # type
     lw $s3, 4($s0)  # orientation 
     lw $s4, 8($s0)  # row
@@ -170,17 +225,17 @@ placePieceOnBoard:
     bgt $s3, $t1, invalid_piece
     
     # Place anchor point
-    move $a0, $s4
-    move $a1, $s5
-    move $a2, $s1
+    move $a0, $s4  # row
+    move $a1, $s5  # col
+    move $a2, $s1  # ship num
     jal place_tile
     bnez $v0, cleanup_and_return
 
-    # Save original coordinates
-    move $t8, $s4  # Save original row
-    move $t9, $s5  # Save original col
+    # Save anchor coordinates
+    move $t8, $s4  # Save row
+    move $t9, $s5  # Save col
     
-    # Branch to piece type handlers
+    # Branch to piece handlers
     li $t0, 1
     beq $s2, $t0, piece_square
     li $t0, 2
@@ -209,6 +264,7 @@ cleanup_and_return:
     j piece_done
 
 piece_done:
+    # Restore registers
     lw $ra, 24($sp)
     lw $s0, 20($sp)
     lw $s1, 16($sp)
@@ -220,6 +276,7 @@ piece_done:
     jr $ra
 
 test_fit:
+    # Preserve registers
     addi $sp, $sp, -20
     sw $ra, 16($sp)
     sw $s0, 12($sp)
@@ -237,7 +294,7 @@ test_loop:
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Load and validate piece data
+    # Load piece data
     lw $t1, 0($s3)  # type
     lw $t2, 4($s3)  # orientation
     
@@ -278,6 +335,7 @@ continue_fit_test:
     move $v0, $s2
     
 test_fit_done:
+    # Restore registers
     lw $ra, 16($sp)
     lw $s0, 12($sp)
     lw $s1, 8($sp)
@@ -285,41 +343,5 @@ test_fit_done:
     lw $s3, 0($sp)
     addi $sp, $sp, 20
     jr $ra
-
-T_orientation4:
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
-    
-    # Restore original coordinates
-    move $a0, $s4
-    move $a1, $s5
-    
-    # Place tile left
-    addi $a1, $a1, -1
-    addi $a0, $a0, 1
-    jal place_tile
-    bnez $v0, t4_fail
-    
-    # Place tile right
-    addi $a1, $a1, 2
-    jal place_tile
-    bnez $v0, t4_fail
-    
-    # Place tile bottom
-    addi $a1, $a1, -1
-    addi $a0, $a0, 1
-    jal place_tile
-    bnez $v0, t4_fail
-    
-    li $v0, 0
-    j t4_done
-    
-t4_fail:
-    # Error code already in $v0
-    
-t4_done:
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    j piece_done
 
 .include "skeleton.asm"
