@@ -194,7 +194,6 @@ t4_done:
     j piece_done
 
 placePieceOnBoard:
-    # Preserve registers
     addi $sp, $sp, -28
     sw $ra, 24($sp)
     sw $s0, 20($sp)
@@ -204,7 +203,6 @@ placePieceOnBoard:
     sw $s4, 4($sp)
     sw $s5, 0($sp)
     
-    # Store arguments
     move $s0, $a0  # piece struct
     move $s1, $a1  # ship num
     
@@ -225,17 +223,15 @@ placePieceOnBoard:
     bgt $s3, $t1, invalid_piece
     
     # Place anchor point
-    move $a0, $s4  # row
-    move $a1, $s5  # col
-    move $a2, $s1  # ship num
+    move $a0, $s4
+    move $a1, $s5
+    move $a2, $s1
     jal place_tile
+    
+    # Check if anchor placement failed
     bnez $v0, cleanup_and_return
 
-    # Save anchor coordinates
-    move $t8, $s4  # Save row
-    move $t9, $s5  # Save col
-    
-    # Branch to piece handlers
+    # Branch to piece type handlers based on type and orientation
     li $t0, 1
     beq $s2, $t0, piece_square
     li $t0, 2
@@ -264,7 +260,6 @@ cleanup_and_return:
     j piece_done
 
 piece_done:
-    # Restore registers
     lw $ra, 24($sp)
     lw $s0, 20($sp)
     lw $s1, 16($sp)
@@ -286,6 +281,9 @@ test_fit:
     move $s0, $a0      # piece array
     li $s1, 0          # current piece index
     li $s2, 0          # error code
+    
+    # Clear board initially
+    jal zeroOut
 
 test_loop:
     # Calculate piece address
@@ -314,28 +312,33 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
+    # Clear board before next piece
+    jal zeroOut
+    
     # Update max error if needed
     blt $v0, $s2, continue_fit_test
     move $s2, $v0
     
 continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5
-    blt $s1, $t0, test_loop
-    
-    move $v0, $s2
-    j test_fit_done
+    li $t0, 5          # Only test first 5 pieces
+    bge $s1, $t0, test_done
+    j test_loop
 
 invalid_fit_type:
     li $v0, 4
+    j test_fit_done
+
+test_done:
+    move $v0, $s2
 
 test_fit_done:
     lw $ra, 16($sp)
-    lw $s0, 12($sp)  
+    lw $s0, 12($sp)
     lw $s1, 8($sp)
     lw $s2, 4($sp)
     lw $s3, 0($sp)
     addi $sp, $sp, 20
     jr $ra
-    
+
 .include "skeleton.asm"
