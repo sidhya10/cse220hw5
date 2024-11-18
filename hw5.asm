@@ -69,10 +69,12 @@ print_col_loop:
     li $v0, 1
     syscall
     
+    addi $t2, $t0, 1
+    beq $t2, $s1, skip_space
     la $a0, space
     li $v0, 4
     syscall
-    
+skip_space:    
     addi $t0, $t0, 1
     blt $t0, $s1, print_col_loop
     
@@ -83,7 +85,7 @@ print_col_loop:
     addi $s3, $s3, 1
     blt $s3, $s2, print_row_loop
 
-    la $a0, extra_newline
+    la $a0, newline
     li $v0, 4
     syscall
 
@@ -101,33 +103,37 @@ place_tile:
     sw $s0, 4($sp)
     sw $s1, 0($sp)
 
+    # Check bounds first
     lw $t0, board_width
     lw $t1, board_height
     
-    bltz $a0, out_of_bounds
-    bge $a0, $t1, out_of_bounds
-    bltz $a1, out_of_bounds
-    bge $a1, $t0, out_of_bounds
+    bltz $a0, out_of_bounds    # row < 0
+    bge $a0, $t1, out_of_bounds # row >= height
+    bltz $a1, out_of_bounds    # col < 0
+    bge $a1, $t0, out_of_bounds # col >= width
     
-    la $t2, board
-    mul $t3, $a0, $t0
-    add $t3, $t3, $a1
-    add $t2, $t2, $t3
+    # Calculate offset correctly
+    mul $t1, $a0, $t0    # row * width
+    add $t1, $t1, $a1    # + col
+    la $t2, board        # load board base
+    add $t2, $t2, $t1    # add offset
     
+    # Check if occupied
     lb $t4, 0($t2)
     bnez $t4, occupied
     
+    # Place tile
     sb $a2, 0($t2)
     li $v0, 0
     j place_tile_done
-    
+
 out_of_bounds:
     li $v0, 2
     j place_tile_done
-    
+
 occupied:
     li $v0, 1
-    
+
 place_tile_done:
     lw $ra, 8($sp)
     lw $s0, 4($sp)
@@ -149,18 +155,32 @@ placePieceOnBoard:
     move $s1, $a1  # ship num
     
     lw $s2, 0($s0)  # type
-    lw $s3, 4($s0)  # orientation
+    lw $s3, 4($s0)  # orientation 
     lw $s4, 8($s0)  # row
     lw $s5, 12($s0) # col
-
-    # Place anchor tile first
+    
+    # Validate type and orientation
+    li $t0, 1
+    li $t1, 7
+    blt $s2, $t0, invalid_piece
+    bgt $s2, $t1, invalid_piece
+    li $t0, 1
+    li $t1, 4
+    blt $s3, $t0, invalid_piece
+    bgt $s3, $t1, invalid_piece
+    
+    # Place anchor point
     move $a0, $s4
     move $a1, $s5
     move $a2, $s1
     jal place_tile
     bnez $v0, cleanup_and_return
 
-    # Check piece type and orientation
+    # Save original coordinates
+    move $t8, $s4  # Save original row
+    move $t9, $s5  # Save original col
+    
+    # Branch to piece type handlers
     li $t0, 1
     beq $s2, $t0, piece_square
     li $t0, 2
@@ -175,7 +195,12 @@ placePieceOnBoard:
     beq $s2, $t0, piece_reverse_L
     li $t0, 7
     beq $s2, $t0, piece_T
-    j cleanup_and_return
+    
+    j piece_done
+
+invalid_piece:
+    li $v0, 4
+    j piece_done
 
 cleanup_and_return:
     move $s2, $v0  # Save error code
@@ -212,20 +237,21 @@ test_loop:
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Load and validate type/orientation first
+    # Load and validate piece data
     lw $t1, 0($s3)  # type
     lw $t2, 4($s3)  # orientation
     
+    # Validate type and orientation
     li $t3, 1
     li $t4, 7
-    blt $t1, $t3, invalid_type
-    bgt $t1, $t4, invalid_type
+    blt $t1, $t3, invalid_fit_type
+    bgt $t1, $t4, invalid_fit_type
     li $t3, 1
     li $t4, 4
-    blt $t2, $t3, invalid_type
-    bgt $t2, $t4, invalid_type
+    blt $t2, $t3, invalid_fit_type
+    bgt $t2, $t4, invalid_fit_type
     
-    # Clear board before trying piece
+    # Clear board before placing piece
     jal zeroOut
     
     # Try placing piece
@@ -233,17 +259,18 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
+    # Update max error if needed
     bgt $v0, $s2, update_max
-    j continue_test
-    
-invalid_type:
+    j continue_fit_test
+
+invalid_fit_type:
     li $v0, 4
     j test_fit_done
     
 update_max:
     move $s2, $v0
     
-continue_test:
+continue_fit_test:
     addi $s1, $s1, 1
     li $t0, 5
     blt $s1, $t0, test_loop
@@ -263,17 +290,24 @@ T_orientation4:
     addi $sp, $sp, -4
     sw $ra, 0($sp)
     
-    addi $a1, $a1, -1  # col - 1
-    addi $a0, $a0, 1   # row + 1
+    # Restore original coordinates
+    move $a0, $s4
+    move $a1, $s5
+    
+    # Place tile left
+    addi $a1, $a1, -1
+    addi $a0, $a0, 1
     jal place_tile
     bnez $v0, t4_fail
     
-    addi $a1, $a1, 2   # col + 2
+    # Place tile right
+    addi $a1, $a1, 2
     jal place_tile
     bnez $v0, t4_fail
     
-    addi $a1, $a1, -1  # col - 1
-    addi $a0, $a0, 1   # row + 2
+    # Place tile bottom
+    addi $a1, $a1, -1
+    addi $a0, $a0, 1
     jal place_tile
     bnez $v0, t4_fail
     
