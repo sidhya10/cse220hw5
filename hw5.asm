@@ -154,20 +154,21 @@ placePieceOnBoard:
     lw $s4, 8($s0)
     lw $s5, 12($s0)
 
-    li $t0, 1
-    beq $s2, $t0, piece_square
-    li $t0, 2
-    beq $s2, $t0, piece_line
-    li $t0, 3
-    beq $s2, $t0, piece_reverse_z
-    li $t0, 4
-    beq $s2, $t0, piece_L
-    li $t0, 5
-    beq $s2, $t0, piece_z
-    li $t0, 6
-    beq $s2, $t0, piece_reverse_L
-    li $t0, 7
-    beq $s2, $t0, piece_T
+
+li $t0, 1
+beq $s2, $t0, piece_square  # Changed $s3 to $s2
+li $t0, 2
+beq $s2, $t0, piece_line    # Changed $s3 to $s2
+li $t0, 3
+beq $s2, $t0, piece_reverse_z # Changed $s3 to $s2
+li $t0, 4
+beq $s2, $t0, piece_L       # Changed $s3 to $s2
+li $t0, 5
+beq $s2, $t0, piece_z       # Changed $s3 to $s2
+li $t0, 6
+beq $s2, $t0, piece_reverse_L # Changed $s3 to $s2
+li $t0, 7
+beq $s2, $t0, piece_T       # Changed $s3 to $s2
 
 piece_done:
     lw $ra, 24($sp)
