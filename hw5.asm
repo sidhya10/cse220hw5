@@ -11,7 +11,6 @@ extra_newline: .asciiz "\n\n"
 .globl test_fit 
 
 printBoard:
-    # Save registers
     addi $sp, $sp, -20
     sw $ra, 16($sp)
     sw $s0, 12($sp)
@@ -22,21 +21,21 @@ printBoard:
     la $s0, board
     lw $s1, board_width
     lw $s2, board_height
-    li $s3, 0
+    li $s3, 0           # row counter
 
 print_row_loop:
-    li $t0, 0
+    li $t0, 0           # column counter
 print_col_loop:
-    mul $t1, $s3, $s1
+    mul $t1, $s3, $s1   # Calculate offset
     add $t1, $t1, $t0
     add $t1, $t1, $s0
     
-    lb $a0, 0($t1)
+    lb $a0, 0($t1)      # Print number
     li $v0, 1
     syscall
     
     addi $t2, $t0, 1
-    beq $t2, $s1, skip_space
+    beq $t2, $s1, skip_space  # Skip space after last column
     la $a0, space
     li $v0, 4
     syscall
@@ -44,14 +43,17 @@ skip_space:
     addi $t0, $t0, 1
     blt $t0, $s1, print_col_loop
     
+    # Only print newline if not the last row
+    addi $t3, $s3, 1
+    beq $t3, $s2, print_row_done
     la $a0, newline
     li $v0, 4
     syscall
     
+print_row_done:    
     addi $s3, $s3, 1
     blt $s3, $s2, print_row_loop
 
-    # Don't print extra newline after board
     lw $ra, 16($sp)
     lw $s0, 12($sp)
     lw $s1, 8($sp)
