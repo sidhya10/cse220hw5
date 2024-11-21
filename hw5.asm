@@ -157,18 +157,16 @@ T_orientation4:
     addi $sp, $sp, -4
     sw $ra, 0($sp)
     
-    # Restore anchor coordinates
-    move $a0, $s4  # row
-    move $a1, $s5  # col
-    
     # Place left tile (one below, one left)
+    move $a0, $s4      # row
     addi $a0, $a0, 1   # row + 1
+    move $a1, $s5      # col
     addi $a1, $a1, -1  # col - 1
     move $a2, $s1      # ship number
     jal place_tile
-    bnez $v0, t4_fail
+    bnez $v0, t4_fail  # if error, cleanup and return
     
-    # Place right tile (one below, one right of anchor)
+    # Place right tile (one below, one right)
     addi $a1, $a1, 2   # col + 2
     jal place_tile
     bnez $v0, t4_fail
@@ -184,7 +182,9 @@ T_orientation4:
     j t4_done
     
 t4_fail:
-    # Error code already in $v0
+    move $t0, $v0      # Save error code
+    jal zeroOut        # Clear board
+    move $v0, $t0      # Restore error code
     
 t4_done:
     lw $ra, 0($sp)
@@ -220,16 +220,16 @@ placePieceOnBoard:
     blt $s3, $t0, invalid_piece
     bgt $s3, $t1, invalid_piece
     
-    # Place anchor point
+    # Try to place the anchor point
     move $a0, $s4
     move $a1, $s5
     move $a2, $s1
     jal place_tile
     
-    # If anchor placement failed, return error
+    # If anchor placement failed, cleanup and return error
     bnez $v0, cleanup_and_return
-    
-    # Branch to correct piece handler based on type
+
+    # Based on piece type and orientation, place remaining tiles
     li $t0, 1
     beq $s2, $t0, piece_square
     li $t0, 2  
@@ -242,23 +242,18 @@ placePieceOnBoard:
     beq $s2, $t0, piece_z  
     li $t0, 6
     beq $s2, $t0, piece_reverse_L
-    li $t0, 7
-    beq $s2, $t0, piece_T
     
-    # Should never get here since we validated type above
-    j piece_done
+    # Must be type 7 (T piece) since we validated earlier
+    j piece_T
 
 invalid_piece:
-    li $v0, 4
+    li $v0, 4          # Invalid type/orientation
     j piece_done
 
 cleanup_and_return:
-    # Save current error code
-    move $t0, $v0
-    # Clear board
-    jal zeroOut
-    # Restore error code and return
-    move $v0, $t0
+    move $t0, $v0      # Save error code
+    jal zeroOut        # Clear the board
+    move $v0, $t0      # Restore error code
     j piece_done
 
 piece_done:
