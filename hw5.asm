@@ -154,42 +154,44 @@ place_tile_done:
 
 T_orientation4:
     # Preserve $ra
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
+    addi $sp, $sp, -8
+    sw $ra, 4($sp)
+    sw $t0, 0($sp)     # Save an extra temp register
+    
+    # Restore anchor coordinates
+    move $a0, $s4      # row
+    move $a1, $s5      # col
     
     # Place left tile (one below, one left)
-    move $a0, $s4      # row
     addi $a0, $a0, 1   # row + 1
-    move $a1, $s5      # col
     addi $a1, $a1, -1  # col - 1
     move $a2, $s1      # ship number
     jal place_tile
-    bnez $v0, t4_fail  # if error, cleanup and return
+    bgtz $v0, t4_fail  # Check for error
     
     # Place right tile (one below, one right)
     addi $a1, $a1, 2   # col + 2
     jal place_tile
-    bnez $v0, t4_fail
+    bgtz $v0, t4_fail
     
     # Place bottom tile (two below, center)
     addi $a0, $a0, 1   # row + 1
     addi $a1, $a1, -1  # col - 1
     jal place_tile
-    bnez $v0, t4_fail
+    bgtz $v0, t4_fail
     
     # Success
     li $v0, 0
     j t4_done
     
 t4_fail:
-    move $t0, $v0      # Save error code
-    jal zeroOut        # Clear board
-    move $v0, $t0      # Restore error code
+    # Don't clear board here - let placePieceOnBoard handle cleanup
     
 t4_done:
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    j piece_done
+    lw $ra, 4($sp)
+    lw $t0, 0($sp)
+    addi $sp, $sp, 8
+    jr $ra
 
 placePieceOnBoard:
     addi $sp, $sp, -28
@@ -263,7 +265,7 @@ piece_done:
     lw $s5, 0($sp)
     addi $sp, $sp, 28
     jr $ra
-    
+
 test_fit:
     addi $sp, $sp, -20
     sw $ra, 16($sp)
