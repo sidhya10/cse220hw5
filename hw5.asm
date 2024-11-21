@@ -112,11 +112,12 @@ zero_col_loop:
     jr $ra
 
 place_tile:
-    # Save registers we'll need
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
+    addi $sp, $sp, -12
+    sw $ra, 8($sp)
+    sw $s0, 4($sp)
+    sw $s1, 0($sp)
 
-    # Load board dimensions once
+    # Load board dimensions
     lw $t0, board_width
     lw $t1, board_height
     
@@ -129,18 +130,18 @@ place_tile:
     bge $a1, $t0, out_of_bounds  # col >= width
     
     # Calculate offset: row * width + col
-    mul $t2, $a0, $t0     # row * width
-    add $t2, $t2, $a1     # + col
-    la $t3, board         # board base address
-    add $t3, $t3, $t2     # board + offset
+    mul $t1, $a0, $t0     # row * width
+    add $t1, $t1, $a1     # + col
+    la $t2, board         # board base address
+    add $t2, $t2, $t1     # board + offset
     
     # Check if occupied
-    lb $t4, 0($t3)
+    lb $t4, 0($t2)
     bnez $t4, occupied    # if cell != 0, occupied
     
     # Place tile
-    sb $a2, 0($t3)       # board[offset] = value
-    li $v0, 0            # return success (valid placement)
+    sb $a2, 0($t2)       # board[offset] = value
+    li $v0, 0            # return success
     j place_tile_done
 
 out_of_bounds:
@@ -151,9 +152,10 @@ occupied:
     li $v0, 1            # return occupied error
 
 place_tile_done:
-    # Restore registers
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
+    lw $ra, 8($sp)
+    lw $s0, 4($sp)
+    lw $s1, 0($sp)
+    addi $sp, $sp, 12
     jr $ra
 
 T_orientation4:
@@ -282,7 +284,7 @@ test_fit:
     
     move $s0, $a0      # piece array
     li $s1, 0          # current piece index
-    li $s2, 0          # error accumulator
+    li $s2, 0          # error code
     
     # Clear board initially
     jal zeroOut
@@ -314,26 +316,26 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # If piece placement failed, clean up and remember highest error
-    bgtz $v0, update_error
+    # Clear board before next piece
+    jal zeroOut
+    
+    # Update max error if needed
+    blt $v0, $s2, continue_fit_test
+    move $s2, $v0
     
 continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5          # Check all 5 pieces
-    blt $s1, $t0, test_loop
-    
-    move $v0, $s2      # Return accumulated error
-    j test_fit_done
-
-update_error:
-    # Update max error code if needed
-    ble $v0, $s2, continue_fit_test
-    move $s2, $v0
-    j continue_fit_test
+    li $t0, 5          # Only test first 5 pieces
+    bge $s1, $t0, test_done
+    j test_loop
 
 invalid_fit_type:
-    li $v0, 4         # Invalid type/orientation error
-    
+    li $v0, 4
+    j test_fit_done
+
+test_done:
+    move $v0, $s2
+
 test_fit_done:
     lw $ra, 16($sp)
     lw $s0, 12($sp)
