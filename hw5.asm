@@ -245,6 +245,7 @@ placePieceOnBoard:
     
     # Must be type 7 (T piece) since we validated earlier
     j piece_T
+    # Don't need piece_done here since piece handlers will jump there
 
 invalid_piece:
     li $v0, 4          # Invalid type/orientation
@@ -254,7 +255,6 @@ cleanup_and_return:
     move $t0, $v0      # Save error code
     jal zeroOut        # Clear the board
     move $v0, $t0      # Restore error code
-    j piece_done
 
 piece_done:
     lw $ra, 24($sp)
