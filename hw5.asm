@@ -226,7 +226,14 @@ placePieceOnBoard:
     # Initialize error accumulator
     li $s2, 0          # Clear error accumulator
     
-    # Try placing piece based on type
+    # Place the anchor point and whole piece first
+    move $a0, $s5      # row
+    move $a1, $s6      # col
+    move $a2, $s1      # ship num
+    jal place_tile    
+    or $s2, $s2, $v0   # Accumulate any error
+    
+    # Place rest of piece regardless of initial error
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -242,26 +249,13 @@ placePieceOnBoard:
     j piece_T          # Must be type 7
 
 piece_return:
-    # $s2 contains accumulated error value
-    li $t0, 0         # Final error code
-    li $t1, 1
-    and $t2, $s2, $t1  # Check if occupied bit is set
-    beqz $t2, check_bounds
-    ori $t0, $t0, 1    # Set occupied bit in final error
-
-check_bounds:
-    li $t1, 2
-    and $t2, $s2, $t1  # Check if out of bounds bit is set
-    beqz $t2, done_check
-    ori $t0, $t0, 2    # Set out of bounds bit in final error
-
-done_check:
-    bnez $t0, do_cleanup   # If any error, cleanup
-    j piece_done
-
-do_cleanup:
-    jal zeroOut          # Clear the board
-    move $v0, $t0        # Return final error code
+    # Always print board first if needed
+    # Get error code ready
+    move $v0, $s2
+    
+    # Only clear board AFTER error is processed
+    beqz $s2, piece_done  # If no error, keep board and return
+    jal zeroOut          # Otherwise clear board
     j piece_done
 
 invalid_piece:
