@@ -201,11 +201,11 @@ placePieceOnBoard:
     li $t1, 2
     beq $t0, $t1, piece_line
     li $t1, 3
-    beq $t0, $t1, piece_z
+    beq $t0, $t1, piece_reverse_z  # Changed order
     li $t1, 4
     beq $t0, $t1, piece_L
     li $t1, 5
-    beq $t0, $t1, piece_reverse_z
+    beq $t0, $t1, piece_z          # Changed order
     li $t1, 6
     beq $t0, $t1, piece_reverse_L
     j piece_T
@@ -215,12 +215,26 @@ invalid_piece:
     j piece_done
 
 piece_return:
-    # If no errors, we're done
-    beqz $s2, success
+    # Need to check both error bits
+    andi $t0, $s2, 1   # Check occupied bit
+    andi $t1, $s2, 2   # Check bounds bit
     
-    # Otherwise, clear board and return error
+    # If both errors present, return 3
+    beqz $t0, check_bounds_only
+    beqz $t1, occupied_only
     jal zeroOut
-    move $v0, $s2
+    li $v0, 3
+    j piece_done
+    
+check_bounds_only:
+    beqz $t1, success  # If no bounds error either, success
+    jal zeroOut
+    li $v0, 2          # Only bounds error
+    j piece_done
+    
+occupied_only:
+    jal zeroOut
+    li $v0, 1          # Only occupied error
     j piece_done
 
 success:
