@@ -175,9 +175,6 @@ placePieceOnBoard:
     sw $ra, 4($sp)
     sw $s2, 0($sp)
     
-    # Clear board first to start fresh
-    jal zeroOut
-    
     # Load piece data into appropriate registers
     lw $t0, 0($a0)     # piece type
     lw $s4, 4($a0)     # orientation
@@ -214,14 +211,16 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    li $v0, 2          # Out of bounds error for invalid type/orientation
+    jal zeroOut        # Clear board before returning error
+    li $v0, 2          
     j piece_done
 
 piece_return:
     # If no errors, we're done
     beqz $s2, success
     
-    # If there were errors, return error code (board already cleared)
+    # If there were errors, clear board and return error code
+    jal zeroOut
     move $v0, $s2
     j piece_done
 
