@@ -206,7 +206,7 @@ placePieceOnBoard:
     move $s0, $a0  # piece struct
     move $s1, $a1  # ship num
     
-    # Load piece data
+    # Load piece data 
     lw $s2, 0($s0)  # type
     lw $s3, 4($s0)  # orientation 
     lw $s4, 8($s0)  # row
@@ -223,37 +223,36 @@ placePieceOnBoard:
     bgt $s3, $t1, invalid_piece
     
     # Place anchor point
-    move $a0, $s4
-    move $a1, $s5
-    move $a2, $s1
+    move $a0, $s4  # row
+    move $a1, $s5  # col
+    move $a2, $s1  # ship num
     jal place_tile
     
-    # If placement failed, handle error
-    bgtz $v0, handle_error
+    bgtz $v0, cleanup_and_return  # If error, cleanup and return
 
-    # Branch to piece handlers based on type
+    # Jump to appropriate piece handler
     li $t0, 1
     beq $s2, $t0, piece_square
-    li $t0, 2
+    li $t0, 2  
     beq $s2, $t0, piece_line
     li $t0, 3
     beq $s2, $t0, piece_reverse_z
     li $t0, 4
     beq $s2, $t0, piece_L
     li $t0, 5
-    beq $s2, $t0, piece_z
+    beq $s2, $t0, piece_z  
     li $t0, 6
     beq $s2, $t0, piece_reverse_L
-    j piece_T
+    j piece_T    # Must be type 7 since we validated
 
 invalid_piece:
     li $v0, 4
     j piece_done
 
-handle_error:
-    move $t0, $v0    # Save error code
-    jal zeroOut      # Clear the board
-    move $v0, $t0    # Restore error code
+cleanup_and_return:
+    # Note: Don't clear board here - let the piece handler do it if needed
+    # Just return the error code
+    j piece_done
 
 piece_done:
     lw $ra, 24($sp)
