@@ -207,36 +207,26 @@ placePieceOnBoard:
     move $s0, $a0      # piece struct
     move $s1, $a1      # ship num
     
-    # Load piece data 
+    # Load piece data
     lw $t0, 0($s0)     # type
-    lw $t1, 4($s0)     # orientation 
-    lw $t2, 8($s0)     # row
-    lw $t3, 12($s0)    # col
+    lw $s4, 4($s0)     # orientation to $s4 as expected
+    lw $s5, 8($s0)     # row to $s5 as expected
+    lw $s6, 12($s0)    # col to $s6 as expected
     
-    # Validate type and orientation first
+    # Validate type and orientation
     li $t4, 1
     li $t5, 7
     blt $t0, $t4, invalid_piece
     bgt $t0, $t5, invalid_piece
     li $t4, 1
     li $t5, 4
-    blt $t1, $t4, invalid_piece
-    bgt $t1, $t5, invalid_piece
+    blt $s4, $t4, invalid_piece
+    bgt $s4, $t5, invalid_piece
     
-    # Setup for piece placement
+    # Initialize error tracking
     li $s2, 0          # Clear error accumulator
-    move $s4, $t1      # orientation to $s4
-    move $s5, $t2      # row to $s5  
-    move $s6, $t3      # col to $s6
     
-    # Place first tile (anchor point)
-    move $a0, $s5      # row
-    move $a1, $s6      # col
-    move $a2, $s1      # ship num
-    jal place_tile
-    or $s2, $s2, $v0
-    
-    # Branch to appropriate piece handler based on type
+    # Select piece handler based on type
     li $t4, 1
     beq $t0, $t4, piece_square
     li $t4, 2
@@ -249,20 +239,18 @@ placePieceOnBoard:
     beq $t0, $t4, piece_z
     li $t4, 6
     beq $t0, $t4, piece_reverse_L
-    j piece_T          # Must be type 7
+    j piece_T
     
 piece_return:
-    bnez $s2, do_cleanup   # If error, clean up
+    bnez $s2, do_cleanup
     j piece_done
-    
+
 do_cleanup:
     jal zeroOut
     
 piece_done:
-    # Set return value based on error status
     move $v0, $s2
     
-    # Restore registers
     lw $ra, 28($sp)
     lw $s0, 24($sp)
     lw $s1, 20($sp)
@@ -273,7 +261,7 @@ piece_done:
     lw $s6, 0($sp)
     addi $sp, $sp, 32
     jr $ra
-    
+
 invalid_piece:
     li $v0, 4
     j piece_done
