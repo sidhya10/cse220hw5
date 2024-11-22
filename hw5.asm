@@ -175,6 +175,9 @@ placePieceOnBoard:
     sw $ra, 4($sp)
     sw $s2, 0($sp)
     
+    # Clear board before attempting new piece
+    jal zeroOut
+    
     # Load piece data into appropriate registers
     lw $t0, 0($a0)     # piece type
     lw $s4, 4($a0)     # orientation
@@ -195,7 +198,7 @@ placePieceOnBoard:
     # Initialize error accumulator
     li $s2, 0          
     
-    # Branch to appropriate piece handler in skeleton.asm
+    # Branch to appropriate piece handler
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -211,16 +214,14 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    jal zeroOut        # Clear board before returning error
-    li $v0, 2          
+    li $v0, 2          # Board already cleared at start
     j piece_done
 
 piece_return:
     # If no errors, we're done
     beqz $s2, success
     
-    # If there were errors, clear board and return error code
-    jal zeroOut
+    # If there were errors, board is already cleared
     move $v0, $s2
     j piece_done
 
