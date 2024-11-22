@@ -221,16 +221,16 @@ piece_return:
     jal zeroOut
     # Return error code (1 for occupied, 2 for out of bounds, 3 for both)
     move $v0, $t0
-    j placePieceOnBoard_done
+    j place_done
 
 success:
     move $v0, $zero
-    j placePieceOnBoard_done
+    j place_done
 
 invalid_piece:
     li $v0, 4
     
-placePieceOnBoard_done:
+piece_done:
     # Restore registers
     lw $ra, 8($sp)
     lw $s2, 4($sp)
