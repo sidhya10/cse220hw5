@@ -209,9 +209,9 @@ placePieceOnBoard:
     
     # Load piece data
     lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation to $s4 as expected
-    lw $s5, 8($s0)     # row to $s5 as expected
-    lw $s6, 12($s0)    # col to $s6 as expected
+    lw $s4, 4($s0)     # orientation to $s4
+    lw $s5, 8($s0)     # row to $s5
+    lw $s6, 12($s0)    # col to $s6
     
     # Validate type and orientation
     li $t4, 1
@@ -226,7 +226,7 @@ placePieceOnBoard:
     # Initialize error tracking
     li $s2, 0          # Clear error accumulator
     
-    # Select piece handler based on type
+    # Try piece placement
     li $t4, 1
     beq $t0, $t4, piece_square
     li $t4, 2
@@ -240,17 +240,19 @@ placePieceOnBoard:
     li $t4, 6
     beq $t0, $t4, piece_reverse_L
     j piece_T
-    
-piece_return:
-    bnez $s2, do_cleanup
+
+# Called after piece handler returns
+check_result:
+    beqz $s2, piece_done      # If no error, keep piece and return
+    jal zeroOut              # If error, clear board
+    move $v0, $s2            # Return error code
     j piece_done
 
-do_cleanup:
-    jal zeroOut
-    
+invalid_piece:
+    li $v0, 4
+    j piece_done
+
 piece_done:
-    move $v0, $s2
-    
     lw $ra, 28($sp)
     lw $s0, 24($sp)
     lw $s1, 20($sp)
@@ -261,10 +263,6 @@ piece_done:
     lw $s6, 0($sp)
     addi $sp, $sp, 32
     jr $ra
-
-invalid_piece:
-    li $v0, 4
-    j piece_done
 
 test_fit:
     addi $sp, $sp, -20
