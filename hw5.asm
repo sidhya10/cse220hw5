@@ -197,7 +197,7 @@ placePieceOnBoard:
     addi $sp, $sp, -32
     sw $ra, 28($sp)
     sw $s0, 24($sp)
-    sw $s1, 20($sp)
+    sw $s1, 20($sp) 
     sw $s2, 16($sp)
     sw $s3, 12($sp)
     sw $s4, 8($sp)
@@ -207,11 +207,11 @@ placePieceOnBoard:
     move $s0, $a0      # piece struct pointer
     move $s1, $a1      # ship num
     
-    # Load piece data
+    # Load piece data into registers expected by piece handlers
     lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation 
-    lw $s5, 8($s0)     # row
-    lw $s6, 12($s0)    # col
+    lw $s4, 4($s0)     # orientation -> $s4
+    lw $s5, 8($s0)     # row -> $s5
+    lw $s6, 12($s0)    # col -> $s6
     
     # Validate type and orientation
     li $t1, 1
@@ -219,53 +219,52 @@ placePieceOnBoard:
     blt $t0, $t1, invalid_piece
     bgt $t0, $t2, invalid_piece
     li $t1, 1
-    li $t2, 4
+    li $t2, 4  
     blt $s4, $t1, invalid_piece
     bgt $s4, $t2, invalid_piece
     
-    # Initialize error accumulator
-    li $s2, 0          # Clear error accumulator
+    # Place anchor point and initialize error tracker
+    move $a0, $s5     # row
+    move $a1, $s6     # col
+    move $a2, $s1     # ship num
+    jal place_tile
+    li $s2, 0         # Clear error tracker
+    or $s2, $s2, $v0  # Save any anchor error
     
-    # Place the anchor point and whole piece first
-    move $a0, $s5      # row
-    move $a1, $s6      # col
-    move $a2, $s1      # ship num
-    jal place_tile    
-    or $s2, $s2, $v0   # Accumulate any error
-    
-    # Place rest of piece regardless of initial error
+    # Branch to appropriate piece handler based on type
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
     beq $t0, $t1, piece_line
     li $t1, 3
-    beq $t0, $t1, piece_reverse_z
+    beq $t0, $t1, piece_reverse_z 
     li $t1, 4
     beq $t0, $t1, piece_L
     li $t1, 5
     beq $t0, $t1, piece_z
     li $t1, 6
     beq $t0, $t1, piece_reverse_L
-    j piece_T          # Must be type 7
-
-piece_return:
-    # Always print board first if needed
-    # Get error code ready
-    move $v0, $s2
+    j piece_T
     
-    # Only clear board AFTER error is processed
-    beqz $s2, piece_done  # If no error, keep board and return
-    jal zeroOut          # Otherwise clear board
+piece_return:
+    # $s2 contains accumulated errors
+    move $v0, $s2     # Return error code
+    bnez $s2, cleanup # Only cleanup on error
+    j piece_done
+    
+cleanup:
+    # Clean up board if placement failed
+    jal zeroOut
+    # v0 already has error code
     j piece_done
 
 invalid_piece:
     li $v0, 4
     j piece_done
-
+    
 piece_done:
-    # Restore registers
     lw $ra, 28($sp)
-    lw $s0, 24($sp)
+    lw $s0, 24($sp) 
     lw $s1, 20($sp)
     lw $s2, 16($sp)
     lw $s3, 12($sp)
