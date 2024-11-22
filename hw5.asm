@@ -60,6 +60,18 @@ skip_space:
     lw $s3, 0($sp)
     addi $sp, $sp, 20
     jr $ra
+    
+print_row_done:    
+    addi $s3, $s3, 1
+    blt $s3, $s2, print_row_loop
+
+    lw $ra, 16($sp)
+    lw $s0, 12($sp)
+    lw $s1, 8($sp)
+    lw $s2, 4($sp)
+    lw $s3, 0($sp)
+    addi $sp, $sp, 20
+    jr $ra
 
 zeroOut:
     # Preserve registers
@@ -107,9 +119,11 @@ place_tile:
     lw $t0, board_width
     lw $t1, board_height
     
-    # Check bounds first
+    # Check row bounds (a0)
     bltz $a0, out_of_bounds    # row < 0
     bge $a0, $t1, out_of_bounds  # row >= height
+    
+    # Check column bounds (a1)
     bltz $a1, out_of_bounds    # col < 0
     bge $a1, $t0, out_of_bounds  # col >= width
     
@@ -119,17 +133,15 @@ place_tile:
     la $t2, board         # board base address
     add $t2, $t2, $t1     # board + offset
     
-    # Check if occupied
+    # Check if occupied first before placing
     lb $t4, 0($t2)       # Load current value
-    bnez $t4, occupied    # If not zero, occupied error
+    beqz $t4, place_val  # If zero, go place value
+    li $v0, 1            # occupied error
+    j place_tile_done
     
-    # Place tile
+place_val:
     sb $a2, 0($t2)       # Set new value
     li $v0, 0            # success
-    j place_tile_done
-
-occupied:
-    li $v0, 1            # occupied error
     j place_tile_done
 
 out_of_bounds:
@@ -147,11 +159,11 @@ T_orientation4:
     sw $t0, 0($sp)     
     
     # Place anchor point
-    move $a0, $s5      # row from s5 
-    move $a1, $s6      # col from s6 
+    move $a0, $s5      # row from s5 (correct)
+    move $a1, $s6      # col from s6 (correct)
     move $a2, $s1      # ship number
-    jal place_tile
-    or $s2, $s2, $v0   # Accumulate error
+    jal place_tile     # Place anchor
+    or $s2, $s2, $v0   # Accumulate error like other functions do
     
     # Place left tile (one below, one left)
     addi $a0, $s5, 1   # row + 1
@@ -161,24 +173,27 @@ T_orientation4:
     or $s2, $s2, $v0   
     
     # Place right tile (one below, one right)
-    addi $a0, $s5, 1   # row + 1
-    addi $a1, $s6, 1   # col + 1
-    move $a2, $s1      
+    move $a0, $s5      # Reset to original row
+    addi $a0, $a0, 1   # row + 1
+    move $a1, $s6      # Reset to original col
+    addi $a1, $a1, 1   # col + 1
     jal place_tile
     or $s2, $s2, $v0
     
     # Place bottom tile (two below, center)
     addi $a0, $s5, 2   # row + 2
-    move $a1, $s6      # same col
-    move $a2, $s1
+    move $a1, $s6      # Original col
     jal place_tile
     or $s2, $s2, $v0
     
-    # Restore and return to piece_return
+    # Return accumulated error
+    move $v0, $s2      
+    
+t4_done:
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
-    j piece_return     # Return through placePieceOnBoard's error handling
+    jr $ra
 
 placePieceOnBoard:
     addi $sp, $sp, -32
@@ -210,20 +225,15 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     bgt $s4, $t2, invalid_piece
     
-    # Initialize error tracker for piece handlers
-    li $s2, 0          
-    
-    # Place anchor tile
-    move $a0, $s5      # row
-    move $a1, $s6      # col
-    move $a2, $s1      # ship num
+    # Place anchor point and initialize error tracker
+    move $a0, $s5     # row
+    move $a1, $s6     # col
+    move $a2, $s1     # ship num
     jal place_tile
-    beqz $v0, continue_piece  # Only continue if anchor succeeds
-    move $s2, $v0      # Save error and cleanup
-    j cleanup
-
-continue_piece:
-    # Branch to appropriate piece handler
+    li $s2, 0         # Clear error tracker
+    or $s2, $s2, $v0  # Save any anchor error
+    
+    # Branch to appropriate piece handler based on type
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -239,12 +249,15 @@ continue_piece:
     j piece_T
     
 piece_return:
-    bnez $s2, cleanup  # If any errors occurred, clean up board
-    j piece_done      # Otherwise we're done
+    # $s2 contains accumulated errors
+    move $v0, $s2     # Return error code
+    bnez $s2, cleanup # Only cleanup on error
+    j piece_done
     
 cleanup:
-    jal zeroOut       # Clear the board
-    move $v0, $s2     # Return accumulated error code
+    # Clean up board if placement failed
+    jal zeroOut
+    # v0 already has error code
     j piece_done
 
 invalid_piece:
@@ -305,7 +318,10 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Keep highest error code
+    # Clear board before next piece
+    jal zeroOut
+    
+    # Update max error if needed
     blt $v0, $s2, continue_fit_test
     move $s2, $v0
     
