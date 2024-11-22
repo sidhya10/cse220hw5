@@ -199,6 +199,9 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     bgt $s4, $t2, invalid_piece
     
+    # Clear board before attempting placement
+    jal zeroOut
+    
     # Initialize error tracking
     li $s2, 0         # Clear error accumulator
     
@@ -218,37 +221,34 @@ placePieceOnBoard:
     j piece_T
     
 piece_return:
-    # First check if we have both error types
+    # Check error bits
     li $t0, 1          # Check occupied bit
     li $t1, 2          # Check out of bounds bit
     and $t2, $s2, $t0  # Get occupied bit
     and $t3, $s2, $t1  # Get out of bounds bit
-    beqz $t2, check_bounds  # If no occupied error, just check bounds
-    beqz $t3, occupied_only # If no bounds error, just occupied
+    
+    # If any errors occurred, zero out the board
+    beqz $t2, check_next_error
+    beqz $t3, occupied_error
     # Both errors present
     li $v0, 3
-    j do_zero_out
-
-check_bounds:
-    and $t0, $s2, $t1  # Check if out of bounds
-    beqz $t0, no_error # If no bounds error, success
-    li $v0, 2          # Out of bounds error
-    j do_zero_out
-
-occupied_only:
-    li $v0, 1          # Occupied error
-    j do_zero_out
-
-no_error:
-    li $v0, 0          # Success
-
-do_zero_out:
-    # Save return value
-    move $t9, $v0
-    # Clear board
     jal zeroOut
-    # Restore return value
-    move $v0, $t9
+    j piece_done
+
+check_next_error:
+    and $t0, $s2, $t1  # Check if out of bounds
+    beqz $t0, success  # If no bounds error, success
+    li $v0, 2          # Out of bounds error
+    jal zeroOut
+    j piece_done
+
+occupied_error:
+    li $v0, 1          # Occupied error
+    jal zeroOut
+    j piece_done
+
+success:
+    li $v0, 0          # Success
     j piece_done
 
 invalid_piece:
