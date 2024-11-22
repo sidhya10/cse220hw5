@@ -207,11 +207,11 @@ placePieceOnBoard:
     move $s0, $a0      # piece struct pointer
     move $s1, $a1      # ship num
     
-    # Load piece data into correct registers for piece handlers
+    # Load piece data
     lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation into $s4 as expected
-    lw $s5, 8($s0)     # row into $s5 as expected
-    lw $s6, 12($s0)    # col into $s6 as expected
+    lw $s4, 4($s0)     # orientation 
+    lw $s5, 8($s0)     # row
+    lw $s6, 12($s0)    # col
     
     # Validate type and orientation
     li $t1, 1
@@ -224,16 +224,9 @@ placePieceOnBoard:
     bgt $s4, $t2, invalid_piece
     
     # Initialize error accumulator
-    li $s2, 0          # Clear error accumulator as expected by piece handlers
+    li $s2, 0          # Clear error accumulator
     
-    # Place anchor point first
-    move $a0, $s5      # row
-    move $a1, $s6      # col
-    move $a2, $s1      # ship num
-    jal place_tile
-    or $s2, $s2, $v0   # Accumulate error
-    
-    # Check piece type and branch to appropriate handler
+    # Try placing piece based on type
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -247,18 +240,28 @@ placePieceOnBoard:
     li $t1, 6
     beq $t0, $t1, piece_reverse_L
     j piece_T          # Must be type 7
-    
-check_result:
-    beqz $s2, piece_done   # If no error, keep piece
-    # For error cases, need to clean up and determine return value
-    jal zeroOut           # Clear board on any error
-    
-    # Return appropriate error code:
-    # $s2 has accumulated error values:
-    # - 1 bit set = occupied (1)
-    # - 2 bit set = out of bounds (2)
-    # - both set = both errors (3)
-    move $v0, $s2
+
+piece_return:
+    # $s2 contains accumulated error value
+    li $t0, 0         # Final error code
+    li $t1, 1
+    and $t2, $s2, $t1  # Check if occupied bit is set
+    beqz $t2, check_bounds
+    ori $t0, $t0, 1    # Set occupied bit in final error
+
+check_bounds:
+    li $t1, 2
+    and $t2, $s2, $t1  # Check if out of bounds bit is set
+    beqz $t2, done_check
+    ori $t0, $t0, 2    # Set out of bounds bit in final error
+
+done_check:
+    bnez $t0, do_cleanup   # If any error, cleanup
+    j piece_done
+
+do_cleanup:
+    jal zeroOut          # Clear the board
+    move $v0, $t0        # Return final error code
     j piece_done
 
 invalid_piece:
@@ -277,7 +280,7 @@ piece_done:
     lw $s6, 0($sp)
     addi $sp, $sp, 32
     jr $ra
-    
+
 test_fit:
     addi $sp, $sp, -20
     sw $ra, 16($sp)
