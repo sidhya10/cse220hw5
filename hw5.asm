@@ -138,38 +138,36 @@ T_orientation4:
     sw $ra, 4($sp)
     sw $t0, 0($sp)     
     
-    # Place all tiles and collect all errors
-    move $a0, $s5      # row
-    move $a1, $s6      # col
-    move $a2, $s1      # ship num
-    jal place_tile
-    or $s2, $s2, $v0   # Accumulate error
+    # Place anchor
+    move $a0, $s5      
+    move $a1, $s6      
+    move $a2, $s1      
+    jal place_tile    
+    or $s2, $s2, $v0   
     
+    # Try placing all tiles regardless of anchor error
     # Left tile
-    addi $a0, $s5, 1   # row + 1
-    addi $a1, $s6, -1  # col - 1
-    move $a2, $s1
+    addi $a0, $s5, 1   
+    addi $a1, $s6, -1  
     jal place_tile
-    or $s2, $s2, $v0   # Keep accumulating errors
+    or $s2, $s2, $v0   
     
     # Right tile
-    addi $a0, $s5, 1   # row + 1
-    addi $a1, $s6, 1   # col + 1
-    move $a2, $s1
+    addi $a0, $s5, 1   
+    addi $a1, $s6, 1   
     jal place_tile
     or $s2, $s2, $v0
     
     # Bottom tile
-    addi $a0, $s5, 2   # row + 2
-    move $a1, $s6      # same col
-    move $a2, $s1
+    addi $a0, $s5, 2   
+    move $a1, $s6      
     jal place_tile
     or $s2, $s2, $v0
-    
+
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
-    j piece_return     # Let placePieceOnBoard handle error code
+    j piece_return     # Return through placePieceOnBoard error handling
 
 placePieceOnBoard:
     addi $sp, $sp, -32
@@ -201,9 +199,6 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     bgt $s4, $t2, invalid_piece
     
-    # Clear board before attempting placement
-    jal zeroOut
-    
     # Initialize error tracking
     li $s2, 0         # Clear error accumulator
     
@@ -223,16 +218,16 @@ placePieceOnBoard:
     j piece_T
     
 piece_return:
-    # Check if any errors occurred
-    beqz $s2, piece_done  # If no errors, keep the piece placed
-    
-    # If there were errors, clear board and return error code
-    jal zeroOut          # Clear board
-    move $v0, $s2        # Return error code
+    # Check error bits to create combined error code
+    li $t0, 3          # Mask for both error bits
+    and $t0, $s2, $t0  # Get error bits
+    # Clear board regardless of error code
+    jal zeroOut
+    # Move combined error code to v0
+    move $v0, $t0      # Return the combined error
     j piece_done
 
 invalid_piece:
-    jal zeroOut         # Clear board for invalid piece
     li $v0, 4
     j piece_done
     
