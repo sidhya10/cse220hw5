@@ -170,79 +170,68 @@ T_orientation4:
     j piece_return     # Return through placePieceOnBoard error handling
 
 placePieceOnBoard:
-    addi $sp, $sp, -32
-    sw $ra, 28($sp)
-    sw $s0, 24($sp)
-    sw $s1, 20($sp)
-    sw $s2, 16($sp)
-    sw $s3, 12($sp)
-    sw $s4, 8($sp)
-    sw $s5, 4($sp)
-    sw $s6, 0($sp)
+    addi $sp, $sp, -20     # Only need to save $ra and temporary registers
+    sw $ra, 16($sp)
+    sw $t0, 12($sp)
+    sw $t1, 8($sp)
+    sw $t2, 4($sp)
+    sw $s2, 0($sp)         # Need to save $s2 as it's used for error accumulation
     
-    move $s0, $a0      # piece struct pointer
-    move $s1, $a1      # ship num
+    # Load piece data - use $t registers instead of overwriting $s registers
+    lw $t0, 0($a0)         # type
+    lw $t1, 4($a0)         # orientation
     
-    # Load piece data
-    lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation
-    lw $s5, 8($s0)     # row
-    lw $s6, 12($s0)    # col
+    # Initialize error tracking
+    li $s2, 0              # Clear error accumulator
     
     # Validate type/orientation
-    li $t1, 1
+    li $t2, 1
+    blt $t0, $t2, invalid_piece
     li $t2, 7
-    blt $t0, $t1, invalid_piece
     bgt $t0, $t2, invalid_piece
-    li $t1, 1
+    li $t2, 1
+    blt $t1, $t2, invalid_piece
     li $t2, 4  
-    blt $s4, $t1, invalid_piece
-    bgt $s4, $t2, invalid_piece
+    bgt $t1, $t2, invalid_piece
     
-    # Initialize error accumulator
-    li $s2, 0         
-    
-    # Branch to appropriate piece handler
-    li $t1, 1
-    beq $t0, $t1, piece_square
-    li $t1, 2
-    beq $t0, $t1, piece_line
-    li $t1, 3
-    beq $t0, $t1, piece_z
-    li $t1, 4
-    beq $t0, $t1, piece_L
-    li $t1, 5  
-    beq $t0, $t1, piece_reverse_z
-    li $t1, 6
-    beq $t0, $t1, piece_reverse_L
+    # Try to place piece - it will accumulate errors in $s2
+    li $t2, 1
+    beq $t0, $t2, piece_square
+    li $t2, 2
+    beq $t0, $t2, piece_line
+    li $t2, 3
+    beq $t0, $t2, piece_reverse_z 
+    li $t2, 4
+    beq $t0, $t2, piece_L
+    li $t2, 5
+    beq $t0, $t2, piece_z
+    li $t2, 6
+    beq $t0, $t2, piece_reverse_L
     j piece_T
     
 piece_return:
-    # If there were any errors, clear the board
-    beqz $s2, piece_success
+    # If there are any errors, zero out the board
+    beqz $s2, piece_success  # If no errors, skip zeroing
     
-    # Clear board if any errors occurred
+    # Clear board and return error code
     jal zeroOut
-    move $v0, $s2      # Return accumulated error code
+    move $v0, $s2           # Return accumulated error code
     j piece_done
 
 piece_success:
-    move $v0, $zero    # Return success (0)
+    li $v0, 0              # Return success code
     j piece_done
 
 invalid_piece:
-    li $v0, 4          # Return invalid piece error
+    li $v0, 4              # Return invalid piece error
     
 piece_done:
-    lw $ra, 28($sp)
-    lw $s0, 24($sp)
-    lw $s1, 20($sp)
-    lw $s2, 16($sp)
-    lw $s3, 12($sp)
-    lw $s4, 8($sp)
-    lw $s5, 4($sp)
-    lw $s6, 0($sp)
-    addi $sp, $sp, 32
+    lw $ra, 16($sp)
+    lw $t0, 12($sp)
+    lw $t1, 8($sp)
+    lw $t2, 4($sp)
+    lw $s2, 0($sp)
+    addi $sp, $sp, 20
     jr $ra
 
 test_fit:
