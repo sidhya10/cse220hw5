@@ -221,11 +221,11 @@ piece_return:
     jal zeroOut
     # Return error code (1 for occupied, 2 for out of bounds, 3 for both)
     move $v0, $t0
-    j place_done
+    j piece_done
 
 success:
     move $v0, $zero
-    j place_done
+    j piece_done
 
 invalid_piece:
     li $v0, 4
