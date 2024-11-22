@@ -211,10 +211,8 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    # Clear the board and return error
-    jal zeroOut
-    li $v0, 2          # Out of bounds error for invalid type/orientation
-    j piece_done
+    li $s2, 2          # Out of bounds error for invalid type/orientation
+    j piece_return
 
 piece_return:
     # If no errors, we're done
@@ -222,9 +220,6 @@ piece_return:
     
     # If there were errors, clear board and return error code
     jal zeroOut
-    
-    # Return accumulated error code
-    # $s2 will be 1 for occupied, 2 for out of bounds, 3 for both
     move $v0, $s2
     j piece_done
 
