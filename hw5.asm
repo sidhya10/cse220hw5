@@ -218,13 +218,37 @@ placePieceOnBoard:
     j piece_T
     
 piece_return:
-    # Check error bits to create combined error code
-    li $t0, 3          # Mask for both error bits
-    and $t0, $s2, $t0  # Get error bits
-    # Clear board regardless of error code
+    # First check if we have both error types
+    li $t0, 1          # Check occupied bit
+    li $t1, 2          # Check out of bounds bit
+    and $t2, $s2, $t0  # Get occupied bit
+    and $t3, $s2, $t1  # Get out of bounds bit
+    beqz $t2, check_bounds  # If no occupied error, just check bounds
+    beqz $t3, occupied_only # If no bounds error, just occupied
+    # Both errors present
+    li $v0, 3
+    j do_zero_out
+
+check_bounds:
+    and $t0, $s2, $t1  # Check if out of bounds
+    beqz $t0, no_error # If no bounds error, success
+    li $v0, 2          # Out of bounds error
+    j do_zero_out
+
+occupied_only:
+    li $v0, 1          # Occupied error
+    j do_zero_out
+
+no_error:
+    li $v0, 0          # Success
+
+do_zero_out:
+    # Save return value
+    move $t9, $v0
+    # Clear board
     jal zeroOut
-    # Move combined error code to v0
-    move $v0, $t0      # Return the combined error
+    # Restore return value
+    move $v0, $t9
     j piece_done
 
 invalid_piece:
