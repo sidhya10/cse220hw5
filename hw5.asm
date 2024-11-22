@@ -192,10 +192,10 @@ placePieceOnBoard:
     li $t1, 4  
     bgt $s4, $t1, invalid_piece
     
-    # Initialize error accumulator
+    # Initialize error accumulator before attempting placement
     li $s2, 0          
     
-    # Branch to appropriate piece handler in skeleton.asm
+    # Try placing the piece
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -211,20 +211,21 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    li $s2, 2          # Out of bounds error for invalid type/orientation
-    j piece_return
+    jal zeroOut        # Clear board
+    li $v0, 2          # Return out of bounds error
+    j piece_done
 
 piece_return:
     # If no errors, we're done
     beqz $s2, success
     
-    # If there were errors, clear board and return error code
+    # If there were errors, clear board before returning
     jal zeroOut
-    move $v0, $s2
+    move $v0, $s2      # Return accumulated error code
     j piece_done
 
 success:
-    li $v0, 0
+    li $v0, 0          # Return success
 
 piece_done:
     # Restore saved registers
