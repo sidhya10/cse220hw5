@@ -194,14 +194,15 @@ t4_done:
     jr $ra
 
 placePieceOnBoard:
-    addi $sp, $sp, -28
-    sw $ra, 24($sp)
-    sw $s0, 20($sp)
-    sw $s1, 16($sp)
-    sw $s2, 12($sp)
-    sw $s3, 8($sp)
-    sw $s4, 4($sp)
-    sw $s5, 0($sp)
+    addi $sp, $sp, -32
+    sw $ra, 28($sp)
+    sw $s0, 24($sp)
+    sw $s1, 20($sp)
+    sw $s2, 16($sp)
+    sw $s3, 12($sp)
+    sw $s4, 8($sp)
+    sw $s5, 4($sp)
+    sw $s6, 0($sp)     # For tracking error code
     
     move $s0, $a0  # piece struct
     move $s1, $a1  # ship num
@@ -211,6 +212,8 @@ placePieceOnBoard:
     lw $s3, 4($s0)  # orientation 
     lw $s4, 8($s0)  # row
     lw $s5, 12($s0) # col
+    
+    li $s6, 0      # Initialize error tracker
     
     # Validate type and orientation first
     li $t0, 1
@@ -228,8 +231,10 @@ placePieceOnBoard:
     move $a2, $s1  # ship num
     jal place_tile
     
-    bgtz $v0, cleanup_and_return  # If error, cleanup and return
-
+    # Update error code without returning immediately
+    or $s6, $s6, $v0    # Combine error codes
+    
+    # Continue with piece placement even if anchor had error
     # Jump to appropriate piece handler
     li $t0, 1
     beq $s2, $t0, piece_square
@@ -249,20 +254,27 @@ invalid_piece:
     li $v0, 4
     j piece_done
 
-cleanup_and_return:
-    # Note: Don't clear board here - let the piece handler do it if needed
-    # Just return the error code
+cleanup_board:
+    jal zeroOut
     j piece_done
 
 piece_done:
-    lw $ra, 24($sp)
-    lw $s0, 20($sp)
-    lw $s1, 16($sp)
-    lw $s2, 12($sp)
-    lw $s3, 8($sp)
-    lw $s4, 4($sp)
-    lw $s5, 0($sp)
-    addi $sp, $sp, 28
+    # If any error occurred, clean up board
+    bnez $s6, cleanup_board
+    
+    # Return final error code
+    move $v0, $s6
+    
+    # Restore registers
+    lw $ra, 28($sp)
+    lw $s0, 24($sp)
+    lw $s1, 20($sp)
+    lw $s2, 16($sp)
+    lw $s3, 12($sp)
+    lw $s4, 8($sp)
+    lw $s5, 4($sp)
+    lw $s6, 0($sp)
+    addi $sp, $sp, 32
     jr $ra
 
 test_fit:
