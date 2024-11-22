@@ -209,46 +209,57 @@ placePieceOnBoard:
     
     # Load piece data 
     lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation into $s4 as required by skeleton
-    lw $s5, 8($s0)     # row into $s5 as required by skeleton
-    lw $s6, 12($s0)    # col into $s6 as required by skeleton
-    
-    # Initialize error accumulator
-    li $s2, 0          # Clear error accumulator used by skeleton
+    lw $t1, 4($s0)     # orientation 
+    lw $t2, 8($s0)     # row
+    lw $t3, 12($s0)    # col
     
     # Validate type and orientation first
-    li $t1, 1
-    li $t2, 7
-    blt $t0, $t1, invalid_piece
-    bgt $t0, $t2, invalid_piece
-    li $t1, 1
-    li $t2, 4
-    blt $s4, $t1, invalid_piece
-    bgt $s4, $t2, invalid_piece
+    li $t4, 1
+    li $t5, 7
+    blt $t0, $t4, invalid_piece
+    bgt $t0, $t5, invalid_piece
+    li $t4, 1
+    li $t5, 4
+    blt $t1, $t4, invalid_piece
+    bgt $t1, $t5, invalid_piece
     
-    # Jump to appropriate piece handler
-    li $t1, 1
-    beq $t0, $t1, piece_square
-    li $t1, 2  
-    beq $t0, $t1, piece_line
-    li $t1, 3
-    beq $t0, $t1, piece_reverse_z
-    li $t1, 4
-    beq $t0, $t1, piece_L
-    li $t1, 5
-    beq $t0, $t1, piece_z  
-    li $t1, 6
-    beq $t0, $t1, piece_reverse_L
-    j piece_T    # Must be type 7
+    # Setup for piece placement
+    li $s2, 0          # Clear error accumulator
+    move $s4, $t1      # orientation to $s4
+    move $s5, $t2      # row to $s5  
+    move $s6, $t3      # col to $s6
     
-# Handle returns from piece placement
+    # Place first tile (anchor point)
+    move $a0, $s5      # row
+    move $a1, $s6      # col
+    move $a2, $s1      # ship num
+    jal place_tile
+    or $s2, $s2, $v0
+    
+    # Branch to appropriate piece handler based on type
+    li $t4, 1
+    beq $t0, $t4, piece_square
+    li $t4, 2
+    beq $t0, $t4, piece_line
+    li $t4, 3
+    beq $t0, $t4, piece_reverse_z
+    li $t4, 4
+    beq $t0, $t4, piece_L
+    li $t4, 5
+    beq $t0, $t4, piece_z
+    li $t4, 6
+    beq $t0, $t4, piece_reverse_L
+    j piece_T          # Must be type 7
+    
 piece_return:
-    # If any error occurred, clean up board
-    beqz $s2, piece_done   # No error
-    jal zeroOut           # Clean up on error
+    bnez $s2, do_cleanup   # If error, clean up
+    j piece_done
+    
+do_cleanup:
+    jal zeroOut
     
 piece_done:
-    # Return accumulated error code from $s2
+    # Set return value based on error status
     move $v0, $s2
     
     # Restore registers
@@ -262,7 +273,7 @@ piece_done:
     lw $s6, 0($sp)
     addi $sp, $sp, 32
     jr $ra
-
+    
 invalid_piece:
     li $v0, 4
     j piece_done
