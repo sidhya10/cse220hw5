@@ -212,7 +212,7 @@ placePieceOnBoard:
 
 invalid_piece:
     li $v0, 4
-    j done
+    j piece_done
 
 piece_return:
     # If no errors, we're done
@@ -221,12 +221,12 @@ piece_return:
     # Otherwise, clear board and return error
     jal zeroOut
     move $v0, $s2
-    j done
+    j piece_done
 
 success:
     li $v0, 0
 
-done:
+piece_done:
     # Restore saved registers
     lw $ra, 4($sp)
     lw $s2, 0($sp)
