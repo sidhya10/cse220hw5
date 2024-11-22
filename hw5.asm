@@ -228,31 +228,67 @@ placePieceOnBoard:
     move $a2, $s1  # ship num
     jal place_tile
     
-    bgtz $v0, cleanup_and_return  # If error, cleanup and return
-
-    # Jump to appropriate piece handler
+    # If error on anchor, cleanup and return
+    bgtz $v0, cleanup_and_return
+    
+    # Jump to appropriate piece handler based on type
     li $t0, 1
-    beq $s2, $t0, piece_square
+    beq $s2, $t0, handle_square
     li $t0, 2  
-    beq $s2, $t0, piece_line
+    beq $s2, $t0, handle_line
     li $t0, 3
-    beq $s2, $t0, piece_reverse_z
+    beq $s2, $t0, handle_reverse_z
     li $t0, 4
-    beq $s2, $t0, piece_L
+    beq $s2, $t0, handle_L
     li $t0, 5
-    beq $s2, $t0, piece_z  
+    beq $s2, $t0, handle_z
     li $t0, 6
-    beq $s2, $t0, piece_reverse_L
-    j piece_T    # Must be type 7 since we validated
+    beq $s2, $t0, handle_reverse_L
+    j handle_T      # Must be type 7 since we validated
+
+handle_square:
+    # Square piece - orientation doesn't matter
+    beq $v0, $zero, square_continue
+    j cleanup_and_return
+square_continue:
+    move $a0, $s4      # original row
+    addi $a1, $s5, 1   # col + 1
+    move $a2, $s1      # ship num
+    jal place_tile
+    j check_result
+
+handle_line:
+    # Call the appropriate line orientation handler based on $s3
+    li $t0, 1
+    beq $s3, $t0, handle_line_vertical
+    j handle_line_horizontal
+    # Other orientation cases would follow...
+
+# Similar handlers for other piece types...
+
+check_result:
+    bgtz $v0, cleanup_and_return
+    j piece_done
+
+cleanup_and_return:
+    jal zeroOut
+    # Make sure to preserve original error code
+    j piece_done
 
 invalid_piece:
     li $v0, 4
     j piece_done
 
-cleanup_and_return:
-    # Note: Don't clear board here - let the piece handler do it if needed
-    # Just return the error code
-    j piece_done
+piece_done:
+    lw $ra, 24($sp)
+    lw $s0, 20($sp)
+    lw $s1, 16($sp)
+    lw $s2, 12($sp)
+    lw $s3, 8($sp)
+    lw $s4, 4($sp)
+    lw $s5, 0($sp)
+    addi $sp, $sp, 28
+    jr $ra
 
 piece_done:
     lw $ra, 24($sp)
