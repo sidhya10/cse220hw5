@@ -201,6 +201,9 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     bgt $s4, $t2, invalid_piece
     
+    # Clear board before attempting placement
+    jal zeroOut
+    
     # Initialize error tracking
     li $s2, 0         # Clear error accumulator
     
@@ -220,16 +223,16 @@ placePieceOnBoard:
     j piece_T
     
 piece_return:
-    # Check error bits to create combined error code
-    li $t0, 3          # Mask for both error bits
-    and $t0, $s2, $t0  # Get error bits
-    # Clear board regardless of error code
-    jal zeroOut
-    # Move combined error code to v0
-    move $v0, $t0      # Return the combined error
+    # Check if any errors occurred
+    beqz $s2, piece_done  # If no errors, keep the piece placed
+    
+    # If there were errors, clear board and return error code
+    jal zeroOut          # Clear board
+    move $v0, $s2        # Return error code
     j piece_done
 
 invalid_piece:
+    jal zeroOut         # Clear board for invalid piece
     li $v0, 4
     j piece_done
     
