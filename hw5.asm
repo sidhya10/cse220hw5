@@ -170,18 +170,17 @@ T_orientation4:
     j piece_return     # Return through placePieceOnBoard error handling
 
 placePieceOnBoard:
-    # Save registers
-    addi $sp, $sp, -12
-    sw $ra, 8($sp)
-    sw $s2, 4($sp)
-    sw $t0, 0($sp)
-
-    # Load piece type and orientation into temp registers
-    lw $t0, 0($a0)       # type
-    lw $s4, 4($a0)       # orientation
-    lw $s5, 8($a0)       # row
-    lw $s6, 12($a0)      # col
-    move $s1, $a1        # ship_num
+    # Save registers that we need to restore
+    addi $sp, $sp, -8
+    sw $ra, 4($sp)
+    sw $s2, 0($sp)
+    
+    # Load piece data into appropriate registers without saving/restoring them
+    lw $s4, 4($a0)     # orientation
+    lw $s5, 8($a0)     # row
+    lw $s6, 12($a0)    # col
+    move $s1, $a1      # ship_num
+    lw $t0, 0($a0)     # piece type
     
     # Validate type/orientation
     li $t1, 1
@@ -194,9 +193,9 @@ placePieceOnBoard:
     bgt $s4, $t1, invalid_piece
     
     # Initialize error accumulator
-    li $s2, 0
+    li $s2, 0          
     
-    # Branch to appropriate piece placement
+    # Branch to appropriate piece handler in skeleton.asm
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -211,31 +210,27 @@ placePieceOnBoard:
     beq $t0, $t1, piece_reverse_L
     j piece_T
 
-piece_return:
-    # If errors occurred, clear board
-    beqz $s2, success
-    
-    # Save error code
-    move $t0, $s2
-    # Clear board
-    jal zeroOut
-    # Return error code (1 for occupied, 2 for out of bounds, 3 for both)
-    move $v0, $t0
-    j piece_done
-
-success:
-    move $v0, $zero
-    j piece_done
-
 invalid_piece:
     li $v0, 4
+    j done
+
+piece_return:
+    # If no errors, we're done
+    beqz $s2, success
     
-piece_done:
-    # Restore registers
-    lw $ra, 8($sp)
-    lw $s2, 4($sp)
-    lw $t0, 0($sp)
-    addi $sp, $sp, 12
+    # Otherwise, clear board and return error
+    jal zeroOut
+    move $v0, $s2
+    j done
+
+success:
+    li $v0, 0
+
+done:
+    # Restore saved registers
+    lw $ra, 4($sp)
+    lw $s2, 0($sp)
+    addi $sp, $sp, 8
     jr $ra
 
 test_fit:
