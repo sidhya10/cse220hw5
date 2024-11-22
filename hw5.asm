@@ -156,36 +156,38 @@ T_orientation4:
     # Preserve $ra
     addi $sp, $sp, -8
     sw $ra, 4($sp)
-    sw $t0, 0($sp)     # Save an extra temp register
+    sw $t0, 0($sp)     
     
-    # Restore anchor coordinates
-    move $a0, $s4      # row
-    move $a1, $s5      # col
+    # Place anchor point
+    move $a0, $s5      # row from s5 (correct)
+    move $a1, $s6      # col from s6 (correct)
+    move $a2, $s1      # ship number
+    jal place_tile     # Place anchor
+    or $s2, $s2, $v0   # Accumulate error like other functions do
     
     # Place left tile (one below, one left)
-    addi $a0, $a0, 1   # row + 1
-    addi $a1, $a1, -1  # col - 1
-    move $a2, $s1      # ship number
+    addi $a0, $s5, 1   # row + 1
+    addi $a1, $s6, -1  # col - 1 
+    move $a2, $s1      
     jal place_tile
-    bgtz $v0, t4_fail  # Check for error
+    or $s2, $s2, $v0   
     
     # Place right tile (one below, one right)
-    addi $a1, $a1, 2   # col + 2
+    move $a0, $s5      # Reset to original row
+    addi $a0, $a0, 1   # row + 1
+    move $a1, $s6      # Reset to original col
+    addi $a1, $a1, 1   # col + 1
     jal place_tile
-    bgtz $v0, t4_fail
+    or $s2, $s2, $v0
     
     # Place bottom tile (two below, center)
-    addi $a0, $a0, 1   # row + 1
-    addi $a1, $a1, -1  # col - 1
+    addi $a0, $s5, 2   # row + 2
+    move $a1, $s6      # Original col
     jal place_tile
-    bgtz $v0, t4_fail
+    or $s2, $s2, $v0
     
-    # Success
-    li $v0, 0
-    j t4_done
-    
-t4_fail:
-    # Don't clear board here - let placePieceOnBoard handle cleanup
+    # Return accumulated error
+    move $v0, $s2      
     
 t4_done:
     lw $ra, 4($sp)
