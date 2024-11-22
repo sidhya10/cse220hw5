@@ -204,48 +204,61 @@ placePieceOnBoard:
     sw $s5, 4($sp)
     sw $s6, 0($sp)
     
-    move $s0, $a0      # piece struct
+    move $s0, $a0      # piece struct pointer
     move $s1, $a1      # ship num
     
-    # Load piece data
+    # Load piece data into correct registers for piece handlers
     lw $t0, 0($s0)     # type
-    lw $s4, 4($s0)     # orientation to $s4
-    lw $s5, 8($s0)     # row to $s5
-    lw $s6, 12($s0)    # col to $s6
+    lw $s4, 4($s0)     # orientation into $s4 as expected
+    lw $s5, 8($s0)     # row into $s5 as expected
+    lw $s6, 12($s0)    # col into $s6 as expected
     
     # Validate type and orientation
-    li $t4, 1
-    li $t5, 7
-    blt $t0, $t4, invalid_piece
-    bgt $t0, $t5, invalid_piece
-    li $t4, 1
-    li $t5, 4
-    blt $s4, $t4, invalid_piece
-    bgt $s4, $t5, invalid_piece
+    li $t1, 1
+    li $t2, 7
+    blt $t0, $t1, invalid_piece
+    bgt $t0, $t2, invalid_piece
+    li $t1, 1
+    li $t2, 4
+    blt $s4, $t1, invalid_piece
+    bgt $s4, $t2, invalid_piece
     
-    # Initialize error tracking
-    li $s2, 0          # Clear error accumulator
+    # Initialize error accumulator
+    li $s2, 0          # Clear error accumulator as expected by piece handlers
     
-    # Try piece placement
-    li $t4, 1
-    beq $t0, $t4, piece_square
-    li $t4, 2
-    beq $t0, $t4, piece_line
-    li $t4, 3
-    beq $t0, $t4, piece_reverse_z
-    li $t4, 4
-    beq $t0, $t4, piece_L
-    li $t4, 5
-    beq $t0, $t4, piece_z
-    li $t4, 6
-    beq $t0, $t4, piece_reverse_L
-    j piece_T
-
-# Called after piece handler returns
+    # Place anchor point first
+    move $a0, $s5      # row
+    move $a1, $s6      # col
+    move $a2, $s1      # ship num
+    jal place_tile
+    or $s2, $s2, $v0   # Accumulate error
+    
+    # Check piece type and branch to appropriate handler
+    li $t1, 1
+    beq $t0, $t1, piece_square
+    li $t1, 2
+    beq $t0, $t1, piece_line
+    li $t1, 3
+    beq $t0, $t1, piece_reverse_z
+    li $t1, 4
+    beq $t0, $t1, piece_L
+    li $t1, 5
+    beq $t0, $t1, piece_z
+    li $t1, 6
+    beq $t0, $t1, piece_reverse_L
+    j piece_T          # Must be type 7
+    
 check_result:
-    beqz $s2, piece_done      # If no error, keep piece and return
-    jal zeroOut              # If error, clear board
-    move $v0, $s2            # Return error code
+    beqz $s2, piece_done   # If no error, keep piece
+    # For error cases, need to clean up and determine return value
+    jal zeroOut           # Clear board on any error
+    
+    # Return appropriate error code:
+    # $s2 has accumulated error values:
+    # - 1 bit set = occupied (1)
+    # - 2 bit set = out of bounds (2)
+    # - both set = both errors (3)
+    move $v0, $s2
     j piece_done
 
 invalid_piece:
@@ -253,6 +266,7 @@ invalid_piece:
     j piece_done
 
 piece_done:
+    # Restore registers
     lw $ra, 28($sp)
     lw $s0, 24($sp)
     lw $s1, 20($sp)
@@ -263,7 +277,7 @@ piece_done:
     lw $s6, 0($sp)
     addi $sp, $sp, 32
     jr $ra
-
+    
 test_fit:
     addi $sp, $sp, -20
     sw $ra, 16($sp)
