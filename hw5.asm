@@ -212,7 +212,7 @@ placePieceOnBoard:
     lw $s4, 8($s0)  # row
     lw $s5, 12($s0) # col
     
-    # Validate type and orientation
+    # Validate type and orientation first
     li $t0, 1
     li $t1, 7
     blt $s2, $t0, invalid_piece
@@ -222,37 +222,37 @@ placePieceOnBoard:
     blt $s3, $t0, invalid_piece
     bgt $s3, $t1, invalid_piece
     
-    # Place anchor point first
+    # Place anchor point
     move $a0, $s4  # row
     move $a1, $s5  # col
     move $a2, $s1  # ship num
     jal place_tile
     
-    # Store first error if any
-    move $t7, $v0  # Save initial error code
-    beq $t7, $zero, continue_piece
-    
-    # If error on anchor, cleanup and return
-    jal zeroOut
-    move $v0, $t7
+    bgtz $v0, cleanup_and_return  # If error, cleanup and return
+
+    # Jump to appropriate piece handler
+    li $t0, 1
+    beq $s2, $t0, piece_square
+    li $t0, 2  
+    beq $s2, $t0, piece_line
+    li $t0, 3
+    beq $s2, $t0, piece_reverse_z
+    li $t0, 4
+    beq $s2, $t0, piece_L
+    li $t0, 5
+    beq $s2, $t0, piece_z  
+    li $t0, 6
+    beq $s2, $t0, piece_reverse_L
+    j piece_T    # Must be type 7 since we validated
+
+invalid_piece:
+    li $v0, 4
     j piece_done
 
-continue_piece:
-    # Call appropriate piece handler based on type and orientation
-    # Each handler should modify board and set $v0 appropriately
-    la $t0, jt_base
-    addi $t1, $s2, -1  # Adjust type to 0-based index
-    mul $t1, $t1, 16   # 4 orientations * 4 bytes per address
-    add $t0, $t0, $t1
-    addi $t1, $s3, -1  # Adjust orientation to 0-based index
-    mul $t1, $t1, 4    # 4 bytes per address
-    add $t0, $t0, $t1
-    lw $t0, ($t0)      # Load handler address
-    jalr $t0           # Jump to handler
-    
-    # If error from handler, clear board
-    beqz $v0, piece_done
-    jal zeroOut
+cleanup_and_return:
+    # Note: Don't clear board here - let the piece handler do it if needed
+    # Just return the error code
+    j piece_done
 
 piece_done:
     lw $ra, 24($sp)
@@ -264,10 +264,6 @@ piece_done:
     lw $s5, 0($sp)
     addi $sp, $sp, 28
     jr $ra
-
-invalid_piece:
-    li $v0, 4
-    j piece_done
 
 test_fit:
     addi $sp, $sp, -20
