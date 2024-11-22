@@ -170,12 +170,15 @@ T_orientation4:
     j piece_return     # Return through placePieceOnBoard error handling
 
 placePieceOnBoard:
-    # Save registers that we need to restore
+    # Save registers
     addi $sp, $sp, -8
     sw $ra, 4($sp)
     sw $s2, 0($sp)
     
-    # Load piece data into appropriate registers without saving/restoring them
+    # First zero out the board before attempting placement
+    jal zeroOut
+    
+    # Load piece data into appropriate registers
     lw $s4, 4($a0)     # orientation
     lw $s5, 8($a0)     # row
     lw $s6, 12($a0)    # col
@@ -201,11 +204,11 @@ placePieceOnBoard:
     li $t1, 2
     beq $t0, $t1, piece_line
     li $t1, 3
-    beq $t0, $t1, piece_reverse_z  # Changed order
+    beq $t0, $t1, piece_reverse_z 
     li $t1, 4
     beq $t0, $t1, piece_L
     li $t1, 5
-    beq $t0, $t1, piece_z          # Changed order
+    beq $t0, $t1, piece_z
     li $t1, 6
     beq $t0, $t1, piece_reverse_L
     j piece_T
@@ -215,26 +218,13 @@ invalid_piece:
     j piece_done
 
 piece_return:
-    # Need to check both error bits
-    andi $t0, $s2, 1   # Check occupied bit
-    andi $t1, $s2, 2   # Check bounds bit
+    # If no errors, we're done
+    beqz $s2, success
     
-    # If both errors present, return 3
-    beqz $t0, check_bounds_only
-    beqz $t1, occupied_only
+    # Otherwise, clear board and return error
     jal zeroOut
-    li $v0, 3
-    j piece_done
-    
-check_bounds_only:
-    beqz $t1, success  # If no bounds error either, success
-    jal zeroOut
-    li $v0, 2          # Only bounds error
-    j piece_done
-    
-occupied_only:
-    jal zeroOut
-    li $v0, 1          # Only occupied error
+    # Return accumulated error code directly
+    move $v0, $s2
     j piece_done
 
 success:
