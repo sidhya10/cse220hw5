@@ -181,10 +181,13 @@ handle_error:
 
 placePieceOnBoard:
     # Save registers
-    addi $sp, $sp, -12        # Make space for 3 registers
+    addi $sp, $sp, -12        
     sw $ra, 8($sp)
     sw $s2, 4($sp)
-    sw $s1, 0($sp)           # Save $s1 since we'll use it
+    sw $s1, 0($sp)           
+
+    # Clear board before attempting any placement
+    jal zeroOut
 
     # Load piece data into appropriate registers
     lw $t0, 0($a0)           # piece type
