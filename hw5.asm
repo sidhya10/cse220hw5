@@ -171,16 +171,20 @@ T_orientation4:
 
 placePieceOnBoard:
     # Save registers
-    addi $sp, $sp, -8
-    sw $ra, 4($sp)
-    sw $s2, 0($sp)
-    
+    addi $sp, $sp, -12        # Make space for 3 registers
+    sw $ra, 8($sp)
+    sw $s2, 4($sp)
+    sw $s1, 0($sp)           # Save $s1 since we'll use it
+
     # Load piece data into appropriate registers
-    lw $t0, 0($a0)     # piece type
-    lw $s4, 4($a0)     # orientation
-    lw $s5, 8($a0)     # row
-    lw $s6, 12($a0)    # col
-    move $s1, $a1      # ship_num
+    lw $t0, 0($a0)           # piece type
+    lw $s4, 4($a0)           # orientation
+    lw $s5, 8($a0)           # row
+    lw $s6, 12($a0)          # col
+    move $s1, $a1            # ship_num
+    
+    # Initialize error accumulator
+    li $s2, 0
     
     # Validate type/orientation
     li $t1, 1
@@ -191,9 +195,6 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     li $t1, 4  
     bgt $s4, $t1, invalid_piece
-    
-    # Initialize error accumulator
-    li $s2, 0          
     
     # Branch to appropriate piece handler
     li $t1, 1
@@ -211,27 +212,46 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    jal zeroOut        # Clear board on invalid piece
-    li $v0, 2          
+    jal zeroOut            # Clear board on invalid piece
+    li $v0, 2              # Return 2 for out of bounds
     j piece_done
 
 piece_return:
-    # If no errors, just return success
-    beqz $s2, success
+    beqz $s2, success      # If no errors, go to success
     
-    # If there were errors, clear board and return error
+    # Handle different error cases
+    li $t0, 1
+    beq $s2, $t0, occupied_error
+    li $t0, 2
+    beq $s2, $t0, bounds_error
+    li $t0, 3
+    beq $s2, $t0, both_error
+    j success              # Shouldn't reach here, but just in case
+
+occupied_error:
     jal zeroOut
-    move $v0, $s2
+    li $v0, 1              # Return 1 for occupied
+    j piece_done
+
+bounds_error:
+    jal zeroOut
+    li $v0, 2              # Return 2 for out of bounds
+    j piece_done
+
+both_error:
+    jal zeroOut
+    li $v0, 3              # Return 3 for both types of errors
     j piece_done
 
 success:
-    li $v0, 0          # Return success without clearing board
+    li $v0, 0              # Return 0 for success
 
 piece_done:
     # Restore saved registers
-    lw $ra, 4($sp)
-    lw $s2, 0($sp)
-    addi $sp, $sp, 8
+    lw $ra, 8($sp)
+    lw $s2, 4($sp)
+    lw $s1, 0($sp)
+    addi $sp, $sp, 12
     jr $ra
 
 test_fit:
