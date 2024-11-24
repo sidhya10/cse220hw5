@@ -143,42 +143,30 @@ T_orientation4:
     move $a1, $s6      
     move $a2, $s1      
     jal place_tile    
-    bnez $v0, handle_error  # If error, clear board and set error code
-    or $s2, $s2, $v0  
+    or $s2, $s2, $v0  # Just accumulate error and continue
     
     # Left tile
     addi $a0, $s5, 1   
     addi $a1, $s6, -1  
     jal place_tile
-    bnez $v0, handle_error  # If error, clear board and set error code  
-    or $s2, $s2, $v0   
+    or $s2, $s2, $v0  # Accumulate error  
     
     # Right tile 
     addi $a0, $s5, 1   
     addi $a1, $s6, 1   
     jal place_tile
-    bnez $v0, handle_error  # If error, clear board and set error code
-    or $s2, $s2, $v0
+    or $s2, $s2, $v0  # Accumulate error
     
     # Bottom tile
     addi $a0, $s5, 2   
     move $a1, $s6      
     jal place_tile
-    bnez $v0, handle_error  # If error, clear board and set error code
-    or $s2, $s2, $v0
+    or $s2, $s2, $v0  # Accumulate error
 
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
-    j piece_return     
-
-handle_error:
-    or $s2, $s2, $v0   # First accumulate error code
-    jal zeroOut        # Then clear board
-    lw $ra, 4($sp)
-    lw $t0, 0($sp)
-    addi $sp, $sp, 8
-    j piece_return
+    j piece_return     # Let placePieceOnBoard handle errors
 
 placePieceOnBoard:
     # Save registers
@@ -231,24 +219,25 @@ piece_return:
     beqz $s2, success      # If no errors, go to success
     
     # Handle different error cases
+    jal zeroOut            # Clear board for any error
     li $t0, 1
     beq $s2, $t0, occupied_error
     li $t0, 2
     beq $s2, $t0, bounds_error
-    li $t0, 3
+    li $t0, 3 
     beq $s2, $t0, both_error
-    j success             # Shouldn't reach here, but just in case
+    j success
 
 occupied_error:
-    li $v0, 1            # Return 1 for occupied
+    li $v0, 1              # Return 1 for occupied
     j piece_done
 
 bounds_error:
-    li $v0, 2            # Return 2 for out of bounds
+    li $v0, 2              # Return 2 for out of bounds
     j piece_done
 
 both_error:
-    li $v0, 3            # Return 3 for both types of errors
+    li $v0, 3              # Return 3 for both types of errors
     j piece_done
 
 success:
