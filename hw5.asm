@@ -143,40 +143,41 @@ T_orientation4:
     move $a1, $s6      
     move $a2, $s1      
     jal place_tile    
-    bnez $v0, clear_and_store  # If error, clear board before storing error
-store_error:
-    or $s2, $s2, $v0   
+    or $s2, $s2, $v0  
+    bnez $s2, handle_error  
     
-    # Try placing all tiles regardless of anchor error
     # Left tile
     addi $a0, $s5, 1   
     addi $a1, $s6, -1  
     jal place_tile
-    bnez $v0, clear_and_store  # If error, clear board before storing error
     or $s2, $s2, $v0   
+    bnez $s2, handle_error  
     
     # Right tile 
     addi $a0, $s5, 1   
     addi $a1, $s6, 1   
     jal place_tile
-    bnez $v0, clear_and_store  # If error, clear board before storing error
     or $s2, $s2, $v0
+    bnez $s2, handle_error  
     
     # Bottom tile
     addi $a0, $s5, 2   
     move $a1, $s6      
     jal place_tile
-    bnez $v0, clear_and_store  # If error, clear board before storing error
     or $s2, $s2, $v0
+    bnez $s2, handle_error  
 
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
-    j piece_return     # Return through placePieceOnBoard error handling
+    j piece_return     
 
-clear_and_store:
-    jal zeroOut        # Clear the board
-    j store_error      # Go back and store the error
+handle_error:
+    jal zeroOut        # Clear the board immediately on any error
+    lw $ra, 4($sp)
+    lw $t0, 0($sp)
+    addi $sp, $sp, 8
+    j piece_return
 
 placePieceOnBoard:
     # Save registers
