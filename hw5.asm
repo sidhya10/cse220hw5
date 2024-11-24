@@ -211,7 +211,7 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    jal zeroOut        # Clear board for invalid piece
+    jal zeroOut        
     li $v0, 2          
     j piece_done
 
@@ -223,18 +223,18 @@ piece_return:
     
     # Handle error cases
     li $t0, 2
-    beq $s2, $t0, out_of_bounds
+    beq $s2, $t0, piece_out_of_bounds   # Changed label name
     li $t0, 1
-    beq $s2, $t0, occupied
+    beq $s2, $t0, piece_occupied        # Changed label name
     # If we get here, must be both errors (3)
     li $v0, 3
     j piece_done
 
-out_of_bounds:
+piece_out_of_bounds:                    # Changed label name
     li $v0, 2
     j piece_done
 
-occupied:
+piece_occupied:                         # Changed label name
     li $v0, 1
     j piece_done
 
