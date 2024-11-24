@@ -171,20 +171,19 @@ T_orientation4:
 
 placePieceOnBoard:
     # Save registers
-    addi $sp, $sp, -12        # Make space for 3 registers
-    sw $ra, 8($sp)
-    sw $s2, 4($sp)
-    sw $s1, 0($sp)           # Save $s1 since we'll use it
-
-    # Load piece data into appropriate registers
-    lw $t0, 0($a0)           # piece type
-    lw $s4, 4($a0)           # orientation
-    lw $s5, 8($a0)           # row
-    lw $s6, 12($a0)          # col
-    move $s1, $a1            # ship_num
+    addi $sp, $sp, -8
+    sw $ra, 4($sp)
+    sw $s2, 0($sp)
+    
+    # Load piece data
+    lw $t0, 0($a0)     # piece type
+    lw $s4, 4($a0)     # orientation
+    lw $s5, 8($a0)     # row
+    lw $s6, 12($a0)    # col
+    move $s1, $a1      # ship_num
     
     # Initialize error accumulator
-    li $s2, 0
+    li $s2, 0          
     
     # Validate type/orientation
     li $t1, 1
@@ -196,7 +195,7 @@ placePieceOnBoard:
     li $t1, 4  
     bgt $s4, $t1, invalid_piece
     
-    # Branch to appropriate piece handler
+    # Branch to piece handlers
     li $t1, 1
     beq $t0, $t1, piece_square
     li $t1, 2
@@ -212,46 +211,41 @@ placePieceOnBoard:
     j piece_T
 
 invalid_piece:
-    jal zeroOut            # Clear board on invalid piece
-    li $v0, 2              # Return 2 for out of bounds
+    jal zeroOut        # Clear board for invalid piece
+    li $v0, 2          
     j piece_done
 
 piece_return:
-    beqz $s2, success      # If no errors, go to success
+    beqz $s2, success  # If no errors, go directly to success without clearing board
     
-    # Handle different error cases
-    li $t0, 1
-    beq $s2, $t0, occupied_error
+    # Only clear board if there was an error
+    jal zeroOut
+    
+    # Handle error cases
     li $t0, 2
-    beq $s2, $t0, bounds_error
-    li $t0, 3
-    beq $s2, $t0, both_error
-    j success              # Shouldn't reach here, but just in case
-
-occupied_error:
-    jal zeroOut
-    li $v0, 1              # Return 1 for occupied
+    beq $s2, $t0, out_of_bounds
+    li $t0, 1
+    beq $s2, $t0, occupied
+    # If we get here, must be both errors (3)
+    li $v0, 3
     j piece_done
 
-bounds_error:
-    jal zeroOut
-    li $v0, 2              # Return 2 for out of bounds
+out_of_bounds:
+    li $v0, 2
     j piece_done
 
-both_error:
-    jal zeroOut
-    li $v0, 3              # Return 3 for both types of errors
+occupied:
+    li $v0, 1
     j piece_done
 
 success:
-    li $v0, 0              # Return 0 for success
+    li $v0, 0          # Return success without clearing board
 
 piece_done:
-    # Restore saved registers
-    lw $ra, 8($sp)
-    lw $s2, 4($sp)
-    lw $s1, 0($sp)
-    addi $sp, $sp, 12
+    # Restore registers
+    lw $ra, 4($sp)
+    lw $s2, 0($sp)
+    addi $sp, $sp, 8
     jr $ra
 
 test_fit:
