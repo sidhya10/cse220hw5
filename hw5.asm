@@ -186,9 +186,6 @@ placePieceOnBoard:
     sw $s2, 4($sp)
     sw $s1, 0($sp)           
 
-    # Clear board before attempting any placement
-    jal zeroOut
-
     # Load piece data into appropriate registers
     lw $t0, 0($a0)           # piece type
     lw $s4, 4($a0)           # orientation
@@ -208,21 +205,6 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     li $t1, 4  
     bgt $s4, $t1, invalid_piece
-    
-    # Branch to appropriate piece handler
-    li $t1, 1
-    beq $t0, $t1, piece_square
-    li $t1, 2
-    beq $t0, $t1, piece_line
-    li $t1, 3
-    beq $t0, $t1, piece_reverse_z 
-    li $t1, 4
-    beq $t0, $t1, piece_L
-    li $t1, 5
-    beq $t0, $t1, piece_z
-    li $t1, 6
-    beq $t0, $t1, piece_reverse_L
-    j piece_T
 
 invalid_piece:
     jal zeroOut            # Clear board on invalid piece
