@@ -196,7 +196,7 @@ placePieceOnBoard:
     # Initialize error accumulator
     li $s2, 0
     
-    # Validate type/orientation
+    # Validate type/orientation and branch to invalid_piece if invalid
     li $t1, 1
     blt $t0, $t1, invalid_piece
     li $t1, 7
@@ -205,6 +205,21 @@ placePieceOnBoard:
     blt $s4, $t1, invalid_piece
     li $t1, 4  
     bgt $s4, $t1, invalid_piece
+    
+    # Branch to appropriate piece handler based on type
+    li $t1, 1
+    beq $t0, $t1, piece_square
+    li $t1, 2
+    beq $t0, $t1, piece_line
+    li $t1, 3
+    beq $t0, $t1, piece_reverse_z 
+    li $t1, 4
+    beq $t0, $t1, piece_L
+    li $t1, 5
+    beq $t0, $t1, piece_z
+    li $t1, 6
+    beq $t0, $t1, piece_reverse_L
+    j piece_T               # If none of the above, must be piece_T
 
 invalid_piece:
     jal zeroOut            # Clear board on invalid piece
@@ -214,9 +229,6 @@ invalid_piece:
 piece_return:
     beqz $s2, success      # If no errors, go to success
     
-    # Clear board immediately if there's any error
-    jal zeroOut            # Move zeroOut here, before branching to specific error cases
-    
     # Handle different error cases
     li $t0, 1
     beq $s2, $t0, occupied_error
@@ -224,22 +236,22 @@ piece_return:
     beq $s2, $t0, bounds_error
     li $t0, 3
     beq $s2, $t0, both_error
-    j success              
+    j success             # Shouldn't reach here, but just in case
 
 occupied_error:
-    li $v0, 1              # Return 1 for occupied
+    li $v0, 1            # Return 1 for occupied
     j piece_done
 
 bounds_error:
-    li $v0, 2              # Return 2 for out of bounds
+    li $v0, 2            # Return 2 for out of bounds
     j piece_done
 
 both_error:
-    li $v0, 3              # Return 3 for both types of errors
+    li $v0, 3            # Return 3 for both types of errors
     j piece_done
 
 success:
-    li $v0, 0              # Return 0 for success
+    li $v0, 0            # Return 0 for success
 
 piece_done:
     # Restore saved registers
