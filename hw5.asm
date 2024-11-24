@@ -143,29 +143,29 @@ T_orientation4:
     move $a1, $s6      
     move $a2, $s1      
     jal place_tile    
+    bnez $v0, handle_error  # If error, clear board and set error code
     or $s2, $s2, $v0  
-    bnez $s2, handle_error  
     
     # Left tile
     addi $a0, $s5, 1   
     addi $a1, $s6, -1  
     jal place_tile
+    bnez $v0, handle_error  # If error, clear board and set error code  
     or $s2, $s2, $v0   
-    bnez $s2, handle_error  
     
     # Right tile 
     addi $a0, $s5, 1   
     addi $a1, $s6, 1   
     jal place_tile
+    bnez $v0, handle_error  # If error, clear board and set error code
     or $s2, $s2, $v0
-    bnez $s2, handle_error  
     
     # Bottom tile
     addi $a0, $s5, 2   
     move $a1, $s6      
     jal place_tile
+    bnez $v0, handle_error  # If error, clear board and set error code
     or $s2, $s2, $v0
-    bnez $s2, handle_error  
 
     lw $ra, 4($sp)
     lw $t0, 0($sp)
@@ -173,7 +173,8 @@ T_orientation4:
     j piece_return     
 
 handle_error:
-    jal zeroOut        # Clear the board immediately on any error
+    or $s2, $s2, $v0   # First accumulate error code
+    jal zeroOut        # Then clear board
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
