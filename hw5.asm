@@ -143,30 +143,42 @@ T_orientation4:
     move $a1, $s6      
     move $a2, $s1      
     jal place_tile    
-    or $s2, $s2, $v0  # Just accumulate error and continue
+    or $s2, $s2, $v0
+    bnez $v0, check_error
     
     # Left tile
     addi $a0, $s5, 1   
     addi $a1, $s6, -1  
     jal place_tile
-    or $s2, $s2, $v0  # Accumulate error  
-    
+    or $s2, $s2, $v0   
+    bnez $v0, check_error
+
     # Right tile 
     addi $a0, $s5, 1   
     addi $a1, $s6, 1   
     jal place_tile
-    or $s2, $s2, $v0  # Accumulate error
-    
+    or $s2, $s2, $v0
+    bnez $v0, check_error
+
     # Bottom tile
     addi $a0, $s5, 2   
     move $a1, $s6      
     jal place_tile
-    or $s2, $s2, $v0  # Accumulate error
+    or $s2, $s2, $v0
+    bnez $v0, check_error
 
+check_error:
+    bnez $s2, clear_and_return   # If any error occurred, clear board
+    j finish_t4
+
+clear_and_return:
+    jal zeroOut                  # Clear board if error
+    
+finish_t4:
     lw $ra, 4($sp)
     lw $t0, 0($sp)
     addi $sp, $sp, 8
-    j piece_return     # Let placePieceOnBoard handle errors
+    j piece_return
 
 placePieceOnBoard:
     # Save registers
@@ -215,11 +227,11 @@ invalid_piece:
     li $v0, 2              # Return 2 for out of bounds
     j piece_done
 
+piece_done:
 piece_return:
     beqz $s2, success      # If no errors, go to success
     
     # Handle different error cases
-    jal zeroOut            # Clear board for any error
     li $t0, 1
     beq $s2, $t0, occupied_error
     li $t0, 2
@@ -230,22 +242,21 @@ piece_return:
 
 occupied_error:
     li $v0, 1              # Return 1 for occupied
-    j piece_done
+    j piece_done           # Changed from jr $ra
 
 bounds_error:
     li $v0, 2              # Return 2 for out of bounds
-    j piece_done
+    j piece_done           # Changed from jr $ra
 
 both_error:
     li $v0, 3              # Return 3 for both types of errors
-    j piece_done
+    j piece_done           # Changed from jr $ra
 
 success:
-    li $v0, 0            # Return 0 for success
-
-piece_done:
-    # Restore saved registers
-    lw $ra, 8($sp)
+    li $v0, 0              # Return 0 for success
+    
+    # Restore registers and return
+    lw $ra, 8($sp)         # Added register restoration
     lw $s2, 4($sp)
     lw $s1, 0($sp)
     addi $sp, $sp, 12
