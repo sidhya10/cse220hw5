@@ -242,21 +242,35 @@ piece_return:
 
 occupied_error:
     li $v0, 1              # Return 1 for occupied
-    j piece_done           # Changed from jr $ra
+    # Restore registers and return
+    lw $ra, 8($sp)
+    lw $s2, 4($sp)
+    lw $s1, 0($sp)
+    addi $sp, $sp, 12
+    jr $ra
 
 bounds_error:
     li $v0, 2              # Return 2 for out of bounds
-    j piece_done           # Changed from jr $ra
+    # Restore registers and return
+    lw $ra, 8($sp)
+    lw $s2, 4($sp)
+    lw $s1, 0($sp)
+    addi $sp, $sp, 12
+    jr $ra
 
 both_error:
     li $v0, 3              # Return 3 for both types of errors
-    j piece_done           # Changed from jr $ra
+    # Restore registers and return
+    lw $ra, 8($sp)
+    lw $s2, 4($sp)
+    lw $s1, 0($sp)
+    addi $sp, $sp, 12
+    jr $ra
 
 success:
     li $v0, 0              # Return 0 for success
-    
     # Restore registers and return
-    lw $ra, 8($sp)         # Added register restoration
+    lw $ra, 8($sp)
     lw $s2, 4($sp)
     lw $s1, 0($sp)
     addi $sp, $sp, 12
