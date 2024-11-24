@@ -229,6 +229,9 @@ invalid_piece:
 piece_return:
     beqz $s2, success      # If no errors, go to success
     
+    # Clear board immediately if there's any error
+    jal zeroOut            # Move zeroOut here, before branching to specific error cases
+    
     # Handle different error cases
     li $t0, 1
     beq $s2, $t0, occupied_error
@@ -236,20 +239,17 @@ piece_return:
     beq $s2, $t0, bounds_error
     li $t0, 3
     beq $s2, $t0, both_error
-    j success              # Shouldn't reach here, but just in case
+    j success              
 
 occupied_error:
-    jal zeroOut
     li $v0, 1              # Return 1 for occupied
     j piece_done
 
 bounds_error:
-    jal zeroOut
     li $v0, 2              # Return 2 for out of bounds
     j piece_done
 
 both_error:
-    jal zeroOut
     li $v0, 3              # Return 3 for both types of errors
     j piece_done
 
