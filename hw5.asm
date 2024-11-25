@@ -291,7 +291,6 @@ test_fit:
     li $s1, 0          # piece counter 
     li $s2, 0          # max error
 
-    jal zeroOut        # initial clear
 
 test_loop:
     # Get current piece
