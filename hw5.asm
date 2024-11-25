@@ -325,7 +325,7 @@ validate_loop:
     # If we get here, all pieces are valid - proceed with placement
     li $s1, 0             # Reset piece counter
     li $s2, 0             # Initialize max error
-    jal zeroOut           # Clear board
+    jal zeroOut           # Initial clear of board
 
 test_loop:
     # Check if we've tried too many times
@@ -360,7 +360,7 @@ update_max_error:
     move $s2, $v0         # Update max error
 
 retry_placement:
-    jal zeroOut           # Clear board
+    jal zeroOut           # Clear board on error
     li $s1, 0             # Reset to first piece
     addi $s5, $s5, 1      # Increment attempt counter
     j test_loop
@@ -372,9 +372,16 @@ invalid_piece_type:
 
 test_done:
     move $v0, $s2         # Return worst error encountered
-    jal zeroOut           # Ensure board is cleared before returning
 
 test_fit_done:
+    # Only clear board if there was an error
+    bnez $v0, do_final_clear
+    j finish_up
+
+do_final_clear:
+    jal zeroOut
+
+finish_up:
     # Restore registers
     lw $ra, 24($sp)
     lw $s0, 20($sp)
