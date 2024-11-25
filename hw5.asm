@@ -287,22 +287,22 @@ test_fit:
     sw $s2, 4($sp)
     sw $s3, 0($sp)
     
-    move $s0, $a0      
-    li $s1, 0          
-    li $s2, 0          
+    move $s0, $a0      # Save piece array address
+    li $s1, 0          # Initialize piece counter
+    li $s2, 0          # Initialize max error value
     
     # Initial clear
     jal zeroOut
 
 test_loop:
-    # Get piece
+    # Get current piece
     li $t0, 16
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Validate piece
-    lw $t1, 0($s3)     
-    lw $t2, 4($s3)     
+    # Validate piece type and rotation
+    lw $t1, 0($s3)     # type 
+    lw $t2, 4($s3)     # rotation
     
     li $t3, 1
     blt $t1, $t3, invalid_fit_type
@@ -313,15 +313,17 @@ test_loop:
     li $t3, 4
     bgt $t2, $t3, invalid_fit_type
 
-    # Try piece
+    # Try to place piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Update max error
+    # If error occurred, clear board and update max error
+    beqz $v0, continue_fit_test    # Skip clear if successful placement
+    jal zeroOut
     blt $v0, $s2, continue_fit_test
     move $s2, $v0
-    
+
 continue_fit_test:
     addi $s1, $s1, 1
     li $t0, 5          
@@ -334,7 +336,7 @@ invalid_fit_type:
     j test_fit_done
 
 test_done:
-    move $v0, $s2
+    move $v0, $s2      # Return maximum error encountered
 
 test_fit_done:
     lw $ra, 16($sp)
