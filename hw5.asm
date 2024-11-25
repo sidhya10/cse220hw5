@@ -280,27 +280,22 @@ success:
     jr $ra
 
 test_fit:
-    addi $sp, $sp, -28   # Add space for board save
-    sw $ra, 24($sp)
-    sw $s0, 20($sp)
-    sw $s1, 16($sp)
-    sw $s2, 12($sp)
-    sw $s3, 8($sp)
-    sw $s4, 4($sp)
-    sw $s5, 0($sp)      # For saving board state
+    addi $sp, $sp, -24    
+    sw $ra, 20($sp)
+    sw $s0, 16($sp)
+    sw $s1, 12($sp)
+    sw $s2, 8($sp)
+    sw $s3, 4($sp)
+    sw $s4, 0($sp)        
     
-    move $s0, $a0       # Save piece array pointer
-    li $s1, 0           # Initialize piece counter
-    li $s2, 0           # Initialize max error
+    move $s0, $a0         # Save piece array pointer
+    li $s1, 0             # Initialize piece counter
+    li $s2, 0             # Initialize max error
     
     # Initial clear
     jal zeroOut
 
 test_loop:
-    # Save current board state before trying new piece
-    la $s4, board       # Load board address
-    move $s5, $s4       # Save current board state
-
     # Get piece
     li $t0, 16
     mul $t0, $t0, $s1
@@ -324,35 +319,36 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # If placement failed, restore previous board state
-    bnez $v0, restore_and_continue
+    # Update max error and continue
+    bgt $v0, $s2, update_max_error  # If new error is worse
+    j continue_fit_test             # Otherwise continue
 
-    # Update piece counter and continue
+update_max_error:
+    move $s2, $v0                  # Save worse error
+
+continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5
+    li $t0, 5          
     bge $s1, $t0, test_done
-    j test_loop
-
-restore_and_continue:
-    move $s2, $v0      # Save error
-    move $s4, $s5      # Restore board state
-    j test_done
+    beqz $v0, test_loop    # Only continue if last placement succeeded
+    j test_done            # Exit if placement failed
 
 invalid_fit_type:
+    jal zeroOut        
     li $v0, 4
+    j test_fit_done
 
 test_done:
-    move $v0, $s2
+    move $v0, $s2      # Return worst error encountered
 
 test_fit_done:
-    lw $ra, 24($sp)
-    lw $s0, 20($sp)
-    lw $s1, 16($sp)
-    lw $s2, 12($sp)
-    lw $s3, 8($sp)
-    lw $s4, 4($sp)
-    lw $s5, 0($sp)
-    addi $sp, $sp, 28
+    lw $ra, 20($sp)
+    lw $s0, 16($sp)
+    lw $s1, 12($sp)
+    lw $s2, 8($sp)
+    lw $s3, 4($sp)
+    lw $s4, 0($sp)
+    addi $sp, $sp, 24
     jr $ra
 
 .include "skeleton.asm"
