@@ -280,29 +280,31 @@ success:
     jr $ra
 
 test_fit:
-    addi $sp, $sp, -20
-    sw $ra, 16($sp)
-    sw $s0, 12($sp)
-    sw $s1, 8($sp)
-    sw $s2, 4($sp)
-    sw $s3, 0($sp)
+    addi $sp, $sp, -24    
+    sw $ra, 20($sp)
+    sw $s0, 16($sp)
+    sw $s1, 12($sp)
+    sw $s2, 8($sp)
+    sw $s3, 4($sp)
+    sw $s4, 0($sp)
     
-    move $s0, $a0      
-    li $s1, 0          
-    li $s2, 0          
+    move $s0, $a0         # piece array pointer
+    li $s1, 0             # piece counter
+    li $s2, 0             # max error
+    li $s4, 0             # attempt counter
     
-    # Initial clear
-    jal zeroOut
+    jal zeroOut           # Initial clear
 
 test_loop:
-    # Get piece
+    li $t0, 5
+    bge $s4, $t0, test_done  # Check attempts limit
+    
     li $t0, 16
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Validate piece
-    lw $t1, 0($s3)     
-    lw $t2, 4($s3)     
+    lw $t1, 0($s3)       
+    lw $t2, 4($s3)       
     
     li $t3, 1
     blt $t1, $t3, invalid_fit_type
@@ -313,36 +315,48 @@ test_loop:
     li $t3, 4
     bgt $t2, $t3, invalid_fit_type
 
-    # Try piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Update max error
-    blt $v0, $s2, continue_fit_test
-    move $s2, $v0
+    # On error - update max error if worse, clear board, start over from piece 0
+    bnez $v0, handle_error
     
-continue_fit_test:
-    addi $s1, $s1, 1
-    li $t0, 5          
-    bge $s1, $t0, test_done
+    # On success - try next piece
+    addi $s1, $s1, 1      
+    li $t0, 5
+    blt $s1, $t0, test_loop
+    j test_done
+
+handle_error:
+    bgt $v0, $s2, update_max
+
+continue_after_error:
+    jal zeroOut            # Clear for fresh attempt
+    li $s1, 0              # Start from first piece
+    addi $s4, $s4, 1       # Count attempt
     j test_loop
 
+update_max:
+    move $s2, $v0
+    j continue_after_error
+
 invalid_fit_type:
-    jal zeroOut        # Clear board before returning invalid type error
-    li $v0, 4
+    jal zeroOut          
+    li $v0, 4            
     j test_fit_done
 
 test_done:
-    move $v0, $s2
+    move $v0, $s2        
 
 test_fit_done:
-    lw $ra, 16($sp)
-    lw $s0, 12($sp)
-    lw $s1, 8($sp)
-    lw $s2, 4($sp)
-    lw $s3, 0($sp)
-    addi $sp, $sp, 20
+    lw $ra, 20($sp)
+    lw $s0, 16($sp)
+    lw $s1, 12($sp)
+    lw $s2, 8($sp)
+    lw $s3, 4($sp)
+    lw $s4, 0($sp)
+    addi $sp, $sp, 24
     jr $ra
 
 .include "skeleton.asm"
