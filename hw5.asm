@@ -280,117 +280,69 @@ success:
     jr $ra
 
 test_fit:
-    # Save registers that we'll use
-    addi $sp, $sp, -28    
-    sw $ra, 24($sp)
-    sw $s0, 20($sp)
-    sw $s1, 16($sp)
-    sw $s2, 12($sp)
-    sw $s3, 8($sp)
-    sw $s4, 4($sp)
-    sw $s5, 0($sp)        # Added s5 for attempt counter
+    addi $sp, $sp, -20
+    sw $ra, 16($sp)
+    sw $s0, 12($sp)
+    sw $s1, 8($sp)
+    sw $s2, 4($sp)
+    sw $s3, 0($sp)
     
-    move $s0, $a0         # Save piece array pointer
-    li $s1, 0             # Initialize piece counter
-    li $s5, 0             # Initialize attempt counter
+    move $s0, $a0      
+    li $s1, 0          
+    li $s2, 0          
     
-    # First validate ALL pieces before attempting placement
-validate_loop:
-    # Get current piece
-    li $t0, 16            # Each piece struct is 16 bytes
-    mul $t0, $t0, $s1     # Calculate offset for current piece
-    add $s3, $s0, $t0     # Get address of current piece
-    
-    # Validate piece type and orientation
-    lw $t1, 0($s3)        # Load piece type
-    lw $t2, 4($s3)        # Load piece orientation
-    
-    # Check type bounds (1-7)
-    li $t3, 1
-    blt $t1, $t3, invalid_piece_type
-    li $t3, 7
-    bgt $t1, $t3, invalid_piece_type
-    
-    # Check orientation bounds (1-4)
-    li $t3, 1
-    blt $t2, $t3, invalid_piece_type
-    li $t3, 4
-    bgt $t2, $t3, invalid_piece_type
-    
-    # Continue validation for all pieces
-    addi $s1, $s1, 1
-    li $t0, 5
-    blt $s1, $t0, validate_loop
-    
-    # If we get here, all pieces are valid - proceed with placement
-    li $s1, 0             # Reset piece counter
-    li $s2, 0             # Initialize max error
-    jal zeroOut           # Initial clear of board
+    # Initial clear
+    jal zeroOut
 
 test_loop:
-    # Check if we've tried too many times
-    li $t0, 5
-    bge $s5, $t0, test_done
-    
-    # Get current piece
+    # Get piece
     li $t0, 16
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Try to place the piece
+    # Validate piece
+    lw $t1, 0($s3)     
+    lw $t2, 4($s3)     
+    
+    li $t3, 1
+    blt $t1, $t3, invalid_fit_type
+    li $t3, 7
+    bgt $t1, $t3, invalid_fit_type
+    li $t3, 1
+    blt $t2, $t3, invalid_fit_type
+    li $t3, 4
+    bgt $t2, $t3, invalid_fit_type
+
+    # Try piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # If placement failed
-    bnez $v0, handle_error
+    # Update max error
+    blt $v0, $s2, continue_fit_test
+    move $s2, $v0
     
-    # If successful, continue to next piece
+continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5
-    blt $s1, $t0, test_loop
-    j test_done
-
-handle_error:
-    # Update max error if new error is worse
-    bgt $v0, $s2, update_max_error
-    j retry_placement
-
-update_max_error:
-    move $s2, $v0         # Update max error
-
-retry_placement:
-    jal zeroOut           # Clear board on error
-    li $s1, 0             # Reset to first piece
-    addi $s5, $s5, 1      # Increment attempt counter
+    li $t0, 5          
+    bge $s1, $t0, test_done
     j test_loop
 
-invalid_piece_type:
-    jal zeroOut           # Ensure board is clear
-    li $v0, 4             # Invalid type/orientation error
+invalid_fit_type:
+    jal zeroOut        # Clear board before returning invalid type error
+    li $v0, 4
     j test_fit_done
 
 test_done:
-    move $v0, $s2         # Return worst error encountered
+    move $v0, $s2
 
 test_fit_done:
-    # Only clear board if there was an error
-    bnez $v0, do_final_clear
-    j finish_up
-
-do_final_clear:
-    jal zeroOut
-
-finish_up:
-    # Restore registers
-    lw $ra, 24($sp)
-    lw $s0, 20($sp)
-    lw $s1, 16($sp)
-    lw $s2, 12($sp)
-    lw $s3, 8($sp)
-    lw $s4, 4($sp)
-    lw $s5, 0($sp)
-    addi $sp, $sp, 28
+    lw $ra, 16($sp)
+    lw $s0, 12($sp)
+    lw $s1, 8($sp)
+    lw $s2, 4($sp)
+    lw $s3, 0($sp)
+    addi $sp, $sp, 20
     jr $ra
 
 .include "skeleton.asm"
