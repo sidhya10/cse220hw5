@@ -280,6 +280,7 @@ success:
     jr $ra
 
 test_fit:
+    # Save registers that we'll use
     addi $sp, $sp, -24    
     sw $ra, 20($sp)
     sw $s0, 16($sp)
@@ -292,58 +293,67 @@ test_fit:
     li $s1, 0             # Initialize piece counter
     li $s2, 0             # Initialize max error
     
-    # Initial clear
+    # Initial clear of board
     jal zeroOut
 
 test_loop:
-    # Get piece
-    li $t0, 16
-    mul $t0, $t0, $s1
-    add $s3, $s0, $t0
+    # Get current piece
+    li $t0, 16            # Each piece struct is 16 bytes
+    mul $t0, $t0, $s1     # Calculate offset for current piece
+    add $s3, $s0, $t0     # Get address of current piece
     
-    # Validate piece
-    lw $t1, 0($s3)     
-    lw $t2, 4($s3)     
+    # Validate piece type and orientation first
+    lw $t1, 0($s3)        # Load piece type
+    lw $t2, 4($s3)        # Load piece orientation
     
+    # Check type bounds (1-7)
     li $t3, 1
-    blt $t1, $t3, invalid_fit_type
+    blt $t1, $t3, invalid_piece_type
     li $t3, 7
-    bgt $t1, $t3, invalid_fit_type
+    bgt $t1, $t3, invalid_piece_type
+    
+    # Check orientation bounds (1-4)
     li $t3, 1
-    blt $t2, $t3, invalid_fit_type
+    blt $t2, $t3, invalid_piece_type
     li $t3, 4
-    bgt $t2, $t3, invalid_fit_type
-
-    # Try piece
-    move $a0, $s3
-    addi $a1, $s1, 1
+    bgt $t2, $t3, invalid_piece_type
+    
+    # Try to place the piece
+    move $a0, $s3         # Piece struct address
+    addi $a1, $s1, 1      # Piece number (1-based)
     jal placePieceOnBoard
     
-    # Update max error if this error was worse
-    bgt $v0, $s2, update_max_error
-    
-    # Continue to next piece (success or not)
-    addi $s1, $s1, 1
+    # If placement failed, update max error and clear board
+    beqz $v0, continue_test  # If successful, keep the placement
+    bgt $v0, $s2, update_max_error  # Update max error if worse
+    j clear_and_continue    # Clear board and continue if error
+
+continue_test:
+    # Continue to next piece only after successful placement
+    addi $s1, $s1, 1      # Increment piece counter
     li $t0, 5
-    blt $s1, $t0, test_loop
+    blt $s1, $t0, test_loop  # Continue if we haven't tested all 5 pieces
     j test_done
 
 update_max_error:
-    move $s2, $v0
-    addi $s1, $s1, 1
+    move $s2, $v0         # Update max error
+
+clear_and_continue:
+    jal zeroOut           # Clear board
+    addi $s1, $s1, 1      # Move to next piece
     li $t0, 5
     blt $s1, $t0, test_loop
     j test_done
 
-invalid_fit_type:
-    jal zeroOut        
-    li $v0, 4
+invalid_piece_type:
+    li $v0, 4             # Invalid type/orientation error
     j test_fit_done
 
 test_done:
-    move $v0, $s2      # Return worst error encountered
+    move $v0, $s2         # Return worst error encountered
 
 test_fit_done:
+    # Restore registers
     lw $ra, 20($sp)
     lw $s0, 16($sp)
     lw $s1, 12($sp)
