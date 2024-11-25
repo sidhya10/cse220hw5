@@ -319,19 +319,19 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Update max error and continue
-    bgt $v0, $s2, update_max_error  # If new error is worse
-    j continue_fit_test             # Otherwise continue
-
-update_max_error:
-    move $s2, $v0                  # Save worse error
-
-continue_fit_test:
+    # If placement error occurred
+    bnez $v0, handle_error
+    
+    # No error, continue to next piece
     addi $s1, $s1, 1
     li $t0, 5          
     bge $s1, $t0, test_done
-    beqz $v0, test_loop    # Only continue if last placement succeeded
-    j test_done            # Exit if placement failed
+    j test_loop
+
+handle_error:
+    move $s2, $v0      # Save worst error
+    jal zeroOut        # Clear board on error
+    j test_done        # Exit on first error
 
 invalid_fit_type:
     jal zeroOut        
