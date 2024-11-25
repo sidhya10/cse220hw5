@@ -280,16 +280,17 @@ success:
     jr $ra
 
 test_fit:
-    addi $sp, $sp, -20
-    sw $ra, 16($sp)
-    sw $s0, 12($sp)
-    sw $s1, 8($sp)
-    sw $s2, 4($sp)
-    sw $s3, 0($sp)
+    addi $sp, $sp, -24    # Add extra space for another save register
+    sw $ra, 20($sp)
+    sw $s0, 16($sp)
+    sw $s1, 12($sp)
+    sw $s2, 8($sp)
+    sw $s3, 4($sp)
+    sw $s4, 0($sp)        # Save register for temp board state
     
-    move $s0, $a0      
-    li $s1, 0          
-    li $s2, 0          
+    move $s0, $a0         # Save piece array pointer
+    li $s1, 0             # Initialize piece counter
+    li $s2, 0             # Initialize max error
     
     # Initial clear
     jal zeroOut
@@ -318,9 +319,10 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Update max error
-    blt $v0, $s2, continue_fit_test
-    move $s2, $v0
+    # Update max error and continue if piece placement succeeded
+    beqz $v0, continue_fit_test    
+    move $s2, $v0                  # Save error if placement failed
+    j test_done                    # Exit on first error
     
 continue_fit_test:
     addi $s1, $s1, 1
@@ -329,20 +331,21 @@ continue_fit_test:
     j test_loop
 
 invalid_fit_type:
-    jal zeroOut        # Clear board before returning invalid type error
+    jal zeroOut        
     li $v0, 4
     j test_fit_done
 
 test_done:
-    move $v0, $s2
+    move $v0, $s2      # Return worst error encountered
 
 test_fit_done:
-    lw $ra, 16($sp)
-    lw $s0, 12($sp)
-    lw $s1, 8($sp)
-    lw $s2, 4($sp)
-    lw $s3, 0($sp)
-    addi $sp, $sp, 20
+    lw $ra, 20($sp)
+    lw $s0, 16($sp)
+    lw $s1, 12($sp)
+    lw $s2, 8($sp)
+    lw $s3, 4($sp)
+    lw $s4, 0($sp)
+    addi $sp, $sp, 24
     jr $ra
 
 .include "skeleton.asm"
