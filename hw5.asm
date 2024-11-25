@@ -231,6 +231,9 @@ piece_done:
 piece_return:
     beqz $s2, success      # If no errors, go to success
     
+    # Clear board immediately on any error
+    jal zeroOut           
+    
     # Handle different error cases
     li $t0, 1
     beq $s2, $t0, occupied_error
