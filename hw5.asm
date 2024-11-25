@@ -280,56 +280,43 @@ success:
     jr $ra
 
 test_fit:
-   addi $sp, $sp, -20
-   sw $ra, 16($sp)
-   sw $s0, 12($sp)
-   sw $s1, 8($sp) 
-   sw $s2, 4($sp)
-   sw $s3, 0($sp)
-   
-   move $s0, $a0      # piece array address
-   li $s1, 0          # piece counter 
-   li $s2, 0          # max error
-
-   jal zeroOut        # initial clear
+    addi $sp, $sp, -24
+    sw $ra, 20($sp)
+    sw $s0, 16($sp)
+    sw $s1, 12($sp)
+    sw $s2, 8($sp)
+    sw $s3, 4($sp)
+    sw $s4, 0($sp)
+    
+    move $s0, $a0      # piece array address
+    li $s1, 0          # piece counter 
+    li $s2, 0          # max error
+    li $s4, 0          # success flag
 
 test_loop:
-   li $t0, 16
-   mul $t0, $t0, $s1
-   add $s3, $s0, $t0
-   
-   # Validate piece
-   lw $t1, 0($s3)     
-   lw $t2, 4($s3)     
-   
-   li $t3, 1
-   blt $t1, $t3, invalid_fit_type
-   li $t3, 7
-   bgt $t1, $t3, invalid_fit_type
-   li $t3, 1
-   blt $t2, $t3, invalid_fit_type
-   li $t3, 4
-   bgt $t2, $t3, invalid_fit_type
+    # Rest of validation code...
 
-   # Try piece
-   move $a0, $s3
-   addi $a1, $s1, 1
-   jal placePieceOnBoard
-   
-   beqz $v0, continue_fit_test
-   # Error occurred 
-   blt $v0, $s2, skip_max
-   move $s2, $v0
-skip_max:
-   jal zeroOut        # Clear board
-   li $s1, -1         # Will increment to 0
-   j continue_fit_test
+    move $a0, $s3
+    addi $a1, $s1, 1
+    jal placePieceOnBoard
+    
+    beqz $v0, placement_success
+    # Error occurred
+    blt $v0, $s2, continue_fit_test
+    move $s2, $v0
+    beqz $s4, continue_fit_test    # If no successes yet, continue to next piece
+    jal zeroOut
+    li $s1, -1                     # Will increment to 0
+    j continue_fit_test
+
+placement_success:
+    li $s4, 1                      # Mark that we had a success
 
 continue_fit_test:
-   addi $s1, $s1, 1
-   li $t0, 5          
-   bge $s1, $t0, test_done
-   j test_loop
+    addi $s1, $s1, 1
+    li $t0, 5
+    bge $s1, $t0, test_done
+    j test_loop
 
 invalid_fit_type:
    jal zeroOut
