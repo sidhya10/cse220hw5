@@ -146,23 +146,23 @@ T_orientation4:
     or $s2, $s2, $v0
     bnez $v0, check_error
     
-    # Left tile
-    addi $a0, $s5, 1   
-    addi $a1, $s6, -1  
+    # Right tile (changed order and positions)
+    move $a0, $s5          # Same row as anchor
+    addi $a1, $s6, 1       # One column right
     jal place_tile
     or $s2, $s2, $v0   
     bnez $v0, check_error
 
-    # Right tile 
-    addi $a0, $s5, 1   
-    addi $a1, $s6, 1   
+    # Down tile
+    addi $a0, $s5, 1       # One row down   
+    move $a1, $s6          # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0
     bnez $v0, check_error
 
     # Bottom tile
-    addi $a0, $s5, 2   
-    move $a1, $s6      
+    addi $a0, $s5, 2      # Two rows down
+    move $a1, $s6         # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0
     bnez $v0, check_error
