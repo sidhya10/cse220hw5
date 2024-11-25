@@ -319,19 +319,20 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # If placement error occurred
+    # If error, handle it
     bnez $v0, handle_error
     
-    # No error, continue to next piece
+    # No error - piece placed successfully
+    # Just continue to next piece WITHOUT clearing board
     addi $s1, $s1, 1
     li $t0, 5          
     bge $s1, $t0, test_done
     j test_loop
 
 handle_error:
-    move $s2, $v0      # Save worst error
+    move $s2, $v0      # Save error
     jal zeroOut        # Clear board on error
-    j test_done        # Exit on first error
+    j test_done        # Exit on error
 
 invalid_fit_type:
     jal zeroOut        
