@@ -280,95 +280,69 @@ success:
     jr $ra
 
 test_fit:
-    addi $sp, $sp, -28    
-    sw $ra, 24($sp)
-    sw $s0, 20($sp)
-    sw $s1, 16($sp)
-    sw $s2, 12($sp)
-    sw $s3, 8($sp)
-    sw $s4, 4($sp)
-    sw $s5, 0($sp)        
+    addi $sp, $sp, -20
+    sw $ra, 16($sp)
+    sw $s0, 12($sp)
+    sw $s1, 8($sp)
+    sw $s2, 4($sp)
+    sw $s3, 0($sp)
     
-    move $s0, $a0         
-    li $s1, 0             # piece counter
-    li $s5, 0             # attempt counter
+    move $s0, $a0      
+    li $s1, 0          
+    li $s2, 0          
     
-validate_loop:
-    li $t0, 16
-    mul $t0, $t0, $s1
-    add $s3, $s0, $t0
-    
-    lw $t1, 0($s3)        # type
-    lw $t2, 4($s3)        # orientation
-    
-    li $t3, 1
-    blt $t1, $t3, invalid_piece_type
-    li $t3, 7
-    bgt $t1, $t3, invalid_piece_type
-    
-    li $t3, 1
-    blt $t2, $t3, invalid_piece_type
-    li $t3, 4
-    bgt $t2, $t3, invalid_piece_type
-    
-    addi $s1, $s1, 1
-    li $t0, 5
-    blt $s1, $t0, validate_loop
-    
-    li $s1, 0            
-    li $s2, 0             # max error
-    jal zeroOut           # Initial clear only
+    # Initial clear
+    jal zeroOut
 
 test_loop:
-    li $t0, 5
-    bge $s5, $t0, test_done
-    
+    # Get piece
     li $t0, 16
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
+    # Validate piece
+    lw $t1, 0($s3)     
+    lw $t2, 4($s3)     
+    
+    li $t3, 1
+    blt $t1, $t3, invalid_fit_type
+    li $t3, 7
+    bgt $t1, $t3, invalid_fit_type
+    li $t3, 1
+    blt $t2, $t3, invalid_fit_type
+    li $t3, 4
+    bgt $t2, $t3, invalid_fit_type
+
+    # Try piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    bnez $v0, handle_error
+    # Update max error
+    blt $v0, $s2, continue_fit_test
+    move $s2, $v0
     
+continue_fit_test:
     addi $s1, $s1, 1
-    li $t0, 5
-    blt $s1, $t0, test_loop
-    j test_done
+    li $t0, 5          
+    bge $s1, $t0, test_done
+    j test_loop
 
-handle_error:
-    bgt $v0, $s2, update_max_error
-    j next_piece
-
-update_max_error:
-    move $s2, $v0        
-
-next_piece:
-    addi $s1, $s1, 1      # Try next piece
-    addi $s5, $s5, 1      # Count attempt
-    li $t0, 5
-    blt $s1, $t0, test_loop
-    j test_done
-
-invalid_piece_type:
-    jal zeroOut          
-    li $v0, 4            
+invalid_fit_type:
+    jal zeroOut        # Clear board before returning invalid type error
+    li $v0, 4
     j test_fit_done
 
 test_done:
-    move $v0, $s2        
+    move $v0, $s2
 
 test_fit_done:
-    lw $ra, 24($sp)
-    lw $s0, 20($sp)
-    lw $s1, 16($sp)
-    lw $s2, 12($sp)
-    lw $s3, 8($sp)
-    lw $s4, 4($sp)
-    lw $s5, 0($sp)
-    addi $sp, $sp, 28
+    lw $ra, 16($sp)
+    lw $s0, 12($sp)
+    lw $s1, 8($sp)
+    lw $s2, 4($sp)
+    lw $s3, 0($sp)
+    addi $sp, $sp, 20
     jr $ra
 
 .include "skeleton.asm"
