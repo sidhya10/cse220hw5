@@ -146,33 +146,33 @@ T_orientation4:
     or $s2, $s2, $v0
     bnez $v0, check_error
     
-    # Right tile (changed order and positions)
-    move $a0, $s5          # Same row as anchor
-    addi $a1, $s6, 1       # One column right
+    # Up tile 
+    addi $a0, $s5, -1    # One row up from anchor
+    move $a1, $s6        # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0   
     bnez $v0, check_error
 
-    # Down tile
-    addi $a0, $s5, 1       # One row down   
-    move $a1, $s6          # Same column as anchor
+    # Right tile
+    move $a0, $s5        # Same row as anchor
+    addi $a1, $s6, 1     # One column right
     jal place_tile
     or $s2, $s2, $v0
     bnez $v0, check_error
 
-    # Bottom tile
-    addi $a0, $s5, 2      # Two rows down
-    move $a1, $s6         # Same column as anchor
+    # Down tile
+    addi $a0, $s5, 1     # One row down from anchor
+    move $a1, $s6        # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0
     bnez $v0, check_error
 
 check_error:
-    bnez $s2, clear_and_return   # If any error occurred, clear board
+    bnez $s2, clear_and_return   
     j finish_t4
 
 clear_and_return:
-    jal zeroOut                  # Clear board if error
+    jal zeroOut                  
     
 finish_t4:
     lw $ra, 4($sp)
