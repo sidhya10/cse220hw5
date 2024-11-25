@@ -329,6 +329,7 @@ continue_fit_test:
     j test_loop
 
 invalid_fit_type:
+    jal zeroOut        # Clear board before returning invalid type error
     li $v0, 4
     j test_fit_done
 
