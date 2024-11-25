@@ -300,7 +300,7 @@ test_loop:
     mul $t0, $t0, $s1
     add $s3, $s0, $t0
     
-    # Validate piece type and rotation
+    # Validate piece
     lw $t1, 0($s3)     # type 
     lw $t2, 4($s3)     # rotation
     
@@ -313,14 +313,16 @@ test_loop:
     li $t3, 4
     bgt $t2, $t3, invalid_fit_type
 
-    # Try to place piece
+    # Try piece
     move $a0, $s3
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # If error occurred, clear board and update max error
-    beqz $v0, continue_fit_test    # Skip clear if successful placement
-    jal zeroOut
+    # Only clear board and update max error if error occurred
+    beqz $v0, continue_fit_test
+    move $t0, $v0      # Save return value
+    jal zeroOut        # Clear board on error
+    move $v0, $t0      # Restore return value
     blt $v0, $s2, continue_fit_test
     move $s2, $v0
 
@@ -331,7 +333,7 @@ continue_fit_test:
     j test_loop
 
 invalid_fit_type:
-    jal zeroOut        # Clear board before returning invalid type error
+    jal zeroOut        
     li $v0, 4
     j test_fit_done
 
