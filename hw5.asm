@@ -280,13 +280,13 @@ success:
     jr $ra
 
 test_fit:
-    addi $sp, $sp, -24    # Add extra space for another save register
+    addi $sp, $sp, -24    
     sw $ra, 20($sp)
     sw $s0, 16($sp)
     sw $s1, 12($sp)
     sw $s2, 8($sp)
     sw $s3, 4($sp)
-    sw $s4, 0($sp)        # Save register for temp board state
+    sw $s4, 0($sp)        
     
     move $s0, $a0         # Save piece array pointer
     li $s1, 0             # Initialize piece counter
@@ -319,16 +319,19 @@ test_loop:
     addi $a1, $s1, 1
     jal placePieceOnBoard
     
-    # Update max error and continue if piece placement succeeded
-    beqz $v0, continue_fit_test    
-    move $s2, $v0                  # Save error if placement failed
-    j test_done                    # Exit on first error
-    
+    # Update max error and continue
+    bgt $v0, $s2, update_max_error  # If new error is worse
+    j continue_fit_test             # Otherwise continue
+
+update_max_error:
+    move $s2, $v0                  # Save worse error
+
 continue_fit_test:
     addi $s1, $s1, 1
     li $t0, 5          
     bge $s1, $t0, test_done
-    j test_loop
+    beqz $v0, test_loop    # Only continue if last placement succeeded
+    j test_done            # Exit if placement failed
 
 invalid_fit_type:
     jal zeroOut        
