@@ -138,8 +138,8 @@ T_orientation4:
     sw $ra, 4($sp)
     sw $t0, 0($sp)     
     
-    # Place anchor
-    move $a0, $s5      
+    # Place anchor but add 1 to row to match the row alignment of other pieces
+    addi $a0, $s5, 1    # Add 1 to row to align with other pieces
     move $a1, $s6      
     move $a2, $s1      
     jal place_tile    
@@ -147,21 +147,21 @@ T_orientation4:
     bnez $v0, check_error
     
     # Up tile 
-    addi $a0, $s5, -1    # One row up from anchor
+    move $a0, $s5        # Now this will be at the original intended row
     move $a1, $s6        # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0   
     bnez $v0, check_error
 
     # Right tile
-    move $a0, $s5        # Same row as anchor
+    addi $a0, $s5, 1     # Same row as anchor
     addi $a1, $s6, 1     # One column right
     jal place_tile
     or $s2, $s2, $v0
     bnez $v0, check_error
 
     # Down tile
-    addi $a0, $s5, 1     # One row down from anchor
+    addi $a0, $s5, 2     # One row down from anchor
     move $a1, $s6        # Same column as anchor
     jal place_tile
     or $s2, $s2, $v0
